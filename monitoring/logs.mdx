@@ -1,122 +1,38 @@
 ---
 title: "Sandbox Logs"
-description: "Viewing and streaming logs from your sandboxes"
+description: "Viewing logs from your sandboxes"
 ---
 
-Moru captures logs from sandbox execution, including command output, system events, and application logs.
+Moru captures logs from sandbox execution, including commands run, stdout, stderr, and exit codes.
 
-## Viewing Logs via API
+## Viewing Logs in the Dashboard
 
-<CodeGroup>
-```python Python
-from moru import Sandbox
-
-sandbox = Sandbox.create()
-
-# Run some commands
-sandbox.commands.run("echo 'Test log message'")
-sandbox.commands.run("python3 -c 'import logging; logging.warning(\"Warning!\")'")
-
-# Get sandbox info for log retrieval
-info = sandbox.get_info()
-print(f"Sandbox ID: {info.sandbox_id}")
-```
-
-```javascript JavaScript
-import Sandbox from '@moru-ai/core'
-
-const sandbox = await Sandbox.create()
-
-// Run some commands
-await sandbox.commands.run("echo 'Test log message'")
-await sandbox.commands.run("python3 -c 'import logging; logging.warning(\"Warning!\")'")
-
-// Get sandbox info for log retrieval
-const info = await sandbox.getInfo()
-console.log(`Sandbox ID: ${info.sandboxId}`)
-```
-</CodeGroup>
-
-## CLI Log Viewing
-
-View logs using the Moru CLI:
-
-```bash
-# View logs for a sandbox
-moru sandbox logs sbx_abc123
-
-# Stream logs in real-time
-moru sandbox logs sbx_abc123 --follow
-
-# Filter by log level
-moru sandbox logs sbx_abc123 --level WARN
-
-# Output as JSON
-moru sandbox logs sbx_abc123 --format json
-```
-
-## Log Levels
-
-| Level | Description |
-|-------|-------------|
-| `DEBUG` | Detailed debugging information |
-| `INFO` | General operational messages |
-| `WARN` | Warning conditions |
-| `ERROR` | Error conditions |
-
-Higher levels include all lower levels. For example, `--level WARN` shows WARN and ERROR messages.
-
-## Dashboard
-
-View logs in the Moru Dashboard:
+The easiest way to view sandbox logs is through the dashboard:
 
 1. Navigate to [moru.io/dashboard](https://moru.io/dashboard)
-2. Go to **Sandboxes** section
-3. Click on your sandbox
-4. View the **Logs** tab
+2. Go to the **Sandboxes** tab
+3. Click on any sandbox row to view its logs
 
-The dashboard provides:
-- Real-time log streaming
-- Search and filtering
-- Log level highlighting
-- Timestamp display
+### What You'll See
 
-## Log Structure
+When you click on a sandbox, you'll see:
 
-Each log entry contains:
+- **Commands executed**: Each command appears as `$ command`
+- **stdout**: Standard output from commands (highlighted in blue)
+- **stderr**: Error output from commands (highlighted in red)
+- **Exit codes**: The exit code for each command
 
-| Field | Description |
-|-------|-------------|
-| `timestamp` | When the log was created |
-| `level` | Log level (DEBUG, INFO, WARN, ERROR) |
-| `message` | Log message content |
-| `logger` | Source of the log |
+You can filter logs by type (stdout or stderr) using the dropdown, and copy all logs with the "Copy all" button.
 
-## Streaming Logs
+### Managing Running Sandboxes
 
-Stream logs in real-time with the CLI:
-
-```bash
-# Stream all logs
-moru sandbox logs sbx_abc123 -f
-
-# Stream filtered by logger
-moru sandbox logs sbx_abc123 -f --loggers "app,system"
-```
-
-## Pagination
-
-For sandboxes with many logs, logs are paginated. The CLI handles pagination automatically.
+If a sandbox is currently running, you can kill it directly from the logs view using the **Kill** button. This immediately terminates the sandbox and frees up resources.
 
 ## Log Retention
 
-Log retention depends on your plan:
+Logs are retained for 7 days.
 
-| Plan | Retention |
-|------|-----------|
-| Hobby | 24 hours |
-| Pro | 7 days |
-| Enterprise | Custom |
+Need longer retention? Contact us at [hi@moru.io](mailto:hi@moru.io).
 
 <Note>
   Logs are associated with sandbox IDs. Once a sandbox is terminated, logs remain accessible for the retention period.

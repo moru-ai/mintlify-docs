@@ -1,59 +1,22 @@
 ---
 title: "Pricing"
-description: "Moru pricing and plans"
+description: "Simple usage-based pricing for Moru sandboxes"
 ---
 
-Moru offers flexible pricing based on your usage and needs.
-
-## Plans
-
-<CardGroup cols={3}>
-  <Card title="Hobby" icon="seedling">
-    **Free to start**
-
-    - 20 concurrent sandboxes
-    - 1 hour max duration
-    - 2 vCPUs, 4 GB RAM
-    - 10 templates
-    - Community support
-  </Card>
-  <Card title="Pro" icon="rocket">
-    **Usage-based**
-
-    - 100 concurrent sandboxes
-    - 24 hour max duration
-    - 8 vCPUs, 32 GB RAM
-    - 100 templates
-    - Email support
-  </Card>
-  <Card title="Enterprise" icon="building">
-    **Custom**
-
-    - Unlimited sandboxes
-    - Custom duration
-    - Custom resources
-    - Unlimited templates
-    - Dedicated support
-  </Card>
-</CardGroup>
+Moru uses simple usage-based pricing. Pay only for what you use.
 
 ## Usage-Based Pricing
 
-Pay for what you use:
-
 | Resource | Price |
 |----------|-------|
-| Sandbox compute | $0.XX per vCPU-hour |
-| Disk storage | $0.XX per GB-month |
-| Network egress | $0.XX per GB |
+| CPU | $0.000014 per vCPU-second |
+| RAM | $0.0000045 per GiB-second |
 
-## Free Tier
+**Example:** A sandbox with 2 vCPUs and 2 GiB RAM running for 1 hour costs approximately $0.14.
 
-Get started for free:
+## Free Credits
 
-- Up to $XX in monthly credits
-- No credit card required
-- All features included
+Every new account receives **$3 in free credits** to get started. No credit card required.
 
 ## Billing
 
@@ -61,52 +24,15 @@ Get started for free:
 
 1. Go to [moru.io/dashboard](https://moru.io/dashboard)
 2. Click **Billing** in the sidebar
-3. View current usage and invoices
-
-### Payment Methods
-
-- Credit/debit cards
-- Bank transfer (Enterprise)
-- Custom invoicing (Enterprise)
-
-## Upgrading
-
-To upgrade your plan:
-
-1. Go to the [billing page](https://moru.io/dashboard/billing)
-2. Select your desired plan
-3. Enter payment details
-4. Confirm upgrade
-
-## Enterprise
-
-For enterprise needs, we offer:
-
-- **Custom limits** - Higher resource quotas
-- **Dedicated support** - Direct engineering support
-- **SLA guarantees** - Uptime and response time guarantees
-- **Custom contracts** - Flexible billing terms
-- **Security reviews** - SOC 2, GDPR compliance
-
-Contact us at [sales@moru.io](mailto:sales@moru.io) or visit [moru.io/enterprise](https://moru.io/enterprise).
-
-## FAQ
-
-### How is compute time calculated?
-
-Compute time is measured in vCPU-hours. A sandbox with 2 vCPUs running for 30 minutes uses 1 vCPU-hour.
-
-### Do paused sandboxes count?
-
-Paused sandboxes (beta) do not consume compute but may have storage costs.
-
-### Are there overage charges?
-
-If you exceed your plan limits, you'll be billed for the additional usage at standard rates.
+3. View current usage and remaining credits
 
 ### Can I set spending limits?
 
-Yes, you can set spending alerts and limits in the dashboard.
+Yes, you can set spending limits in the dashboard to control costs.
+
+## Need More Compute?
+
+All accounts have the same resource limits. If you need higher limits (more concurrent sandboxes, longer duration, more vCPUs/RAM), contact us at [hi@moru.io](mailto:hi@moru.io).
 
 ## Next Steps
 
