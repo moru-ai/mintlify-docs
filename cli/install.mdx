@@ -7,36 +7,34 @@ The Moru CLI provides command-line access to sandbox and template management.
 
 ## Installation
 
-### Option 1: Install Script (Recommended)
+<Tabs>
+  <Tab title="Install Script">
+    No Node.js required. Works on Linux and macOS with automatic PATH configuration.
 
-No Node.js required. Works on Linux and macOS with automatic PATH configuration.
+    ```bash
+    curl -fsSL https://raw.githubusercontent.com/moru-ai/moru/main/install.sh | bash
+    ```
+  </Tab>
+  <Tab title="npm">
+    Requires Node.js 20+.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/moru-ai/moru/main/install.sh | bash
-```
+    ```bash
+    npm install -g @moru-ai/cli
+    ```
+  </Tab>
+  <Tab title="Homebrew">
+    For macOS and Linux Homebrew users.
 
-### Option 2: npm
+    ```bash
+    brew tap moru-ai/moru
+    brew install moru
+    ```
+  </Tab>
+</Tabs>
 
-Good for Node.js developers. Requires Node.js 20+.
-
-```bash
-npm install -g @moru-ai/cli
-```
-
-### Option 3: Homebrew (macOS/Linux)
-
-Simple for Homebrew users.
-
-```bash
-brew tap moru-ai/moru
-brew install moru
-```
-
-### Verify Installation
-
-```bash
-moru --version
-```
+<Tip>
+  After installation, verify with `moru --version`.
+</Tip>
 
 ## First-Time Setup
 
