@@ -1,0 +1,297 @@
+---
+title: "File Management"
+description: "Creating, renaming, and deleting files and directories"
+---
+
+Moru provides methods for common file management operations: checking existence, creating directories, renaming, and deleting.
+
+## Check Existence
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+
+# Check if file exists
+if sandbox.files.exists("/home/user/config.json"):
+    print("Config found")
+else:
+    print("Config not found, using defaults")
+
+# Check directory
+if sandbox.files.exists("/home/user/data"):
+    print("Data directory exists")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+// Check if file exists
+if (await sandbox.files.exists("/home/user/config.json")) {
+  console.log("Config found")
+} else {
+  console.log("Config not found, using defaults")
+}
+
+// Check directory
+if (await sandbox.files.exists("/home/user/data")) {
+  console.log("Data directory exists")
+}
+```
+</CodeGroup>
+
+## Get File Info
+
+Get detailed metadata about a file or directory:
+
+<CodeGroup>
+```python Python
+info = sandbox.files.get_info("/home/user/script.py")
+
+print(f"Name: {info.name}")
+print(f"Path: {info.path}")
+print(f"Type: {info.type}")
+print(f"Size: {info.size} bytes")
+print(f"Permissions: {info.permissions}")
+print(f"Owner: {info.owner}:{info.group}")
+print(f"Modified: {info.modified_time}")
+
+if info.symlink_target:
+    print(f"Symlink to: {info.symlink_target}")
+```
+
+```javascript JavaScript
+const info = await sandbox.files.getInfo("/home/user/script.py")
+
+console.log(`Name: ${info.name}`)
+console.log(`Path: ${info.path}`)
+console.log(`Type: ${info.type}`)
+console.log(`Size: ${info.size} bytes`)
+console.log(`Permissions: ${info.permissions}`)
+console.log(`Owner: ${info.owner}:${info.group}`)
+console.log(`Modified: ${info.modifiedTime}`)
+
+if (info.symlinkTarget) {
+  console.log(`Symlink to: ${info.symlinkTarget}`)
+}
+```
+</CodeGroup>
+
+## Create Directory
+
+<CodeGroup>
+```python Python
+# Create a directory
+created = sandbox.files.make_dir("/home/user/new_folder")
+print(f"Created: {created}")  # True if created, False if already exists
+
+# Nested directories are created automatically
+sandbox.files.make_dir("/home/user/deep/nested/folder")
+```
+
+```javascript JavaScript
+// Create a directory
+const created = await sandbox.files.makeDir("/home/user/new_folder")
+console.log(`Created: ${created}`)  // true if created, false if already exists
+
+// Nested directories are created automatically
+await sandbox.files.makeDir("/home/user/deep/nested/folder")
+```
+</CodeGroup>
+
+## Rename / Move
+
+Rename a file or move it to a new location:
+
+<CodeGroup>
+```python Python
+# Rename a file
+info = sandbox.files.rename("/home/user/old.txt", "/home/user/new.txt")
+print(f"Renamed to: {info.path}")
+
+# Move to different directory
+sandbox.files.rename("/home/user/file.txt", "/tmp/file.txt")
+
+# Rename a directory
+sandbox.files.rename("/home/user/old_folder", "/home/user/new_folder")
+```
+
+```javascript JavaScript
+// Rename a file
+const info = await sandbox.files.rename("/home/user/old.txt", "/home/user/new.txt")
+console.log(`Renamed to: ${info.path}`)
+
+// Move to different directory
+await sandbox.files.rename("/home/user/file.txt", "/tmp/file.txt")
+
+// Rename a directory
+await sandbox.files.rename("/home/user/old_folder", "/home/user/new_folder")
+```
+</CodeGroup>
+
+## Delete Files and Directories
+
+<CodeGroup>
+```python Python
+# Delete a file
+sandbox.files.remove("/home/user/unwanted.txt")
+
+# Delete an empty directory
+sandbox.files.remove("/home/user/empty_folder")
+
+# Delete directory with contents (use command)
+sandbox.commands.run("rm -rf /home/user/folder_with_contents")
+```
+
+```javascript JavaScript
+// Delete a file
+await sandbox.files.remove("/home/user/unwanted.txt")
+
+// Delete an empty directory
+await sandbox.files.remove("/home/user/empty_folder")
+
+// Delete directory with contents (use command)
+await sandbox.commands.run("rm -rf /home/user/folder_with_contents")
+```
+</CodeGroup>
+
+## Copy Files
+
+Use commands for copying:
+
+<CodeGroup>
+```python Python
+# Copy a file
+sandbox.commands.run("cp /home/user/source.txt /home/user/copy.txt")
+
+# Copy a directory recursively
+sandbox.commands.run("cp -r /home/user/source_dir /home/user/copy_dir")
+```
+
+```javascript JavaScript
+// Copy a file
+await sandbox.commands.run("cp /home/user/source.txt /home/user/copy.txt")
+
+// Copy a directory recursively
+await sandbox.commands.run("cp -r /home/user/source_dir /home/user/copy_dir")
+```
+</CodeGroup>
+
+## Change Permissions
+
+Use commands to modify permissions:
+
+<CodeGroup>
+```python Python
+# Make file executable
+sandbox.commands.run("chmod +x /home/user/script.sh")
+
+# Set specific permissions
+sandbox.commands.run("chmod 644 /home/user/config.txt")
+
+# Change owner (as root)
+sandbox.commands.run("chown alice:alice /home/alice/file.txt", user="root")
+```
+
+```javascript JavaScript
+// Make file executable
+await sandbox.commands.run("chmod +x /home/user/script.sh")
+
+// Set specific permissions
+await sandbox.commands.run("chmod 644 /home/user/config.txt")
+
+// Change owner (as root)
+await sandbox.commands.run("chown alice:alice /home/alice/file.txt", { user: "root" })
+```
+</CodeGroup>
+
+## Create Symlinks
+
+<CodeGroup>
+```python Python
+# Create symlink using command
+sandbox.commands.run("ln -s /home/user/actual_file.txt /home/user/link.txt")
+
+# Verify symlink
+info = sandbox.files.get_info("/home/user/link.txt")
+if info.symlink_target:
+    print(f"Links to: {info.symlink_target}")
+```
+
+```javascript JavaScript
+// Create symlink using command
+await sandbox.commands.run("ln -s /home/user/actual_file.txt /home/user/link.txt")
+
+// Verify symlink
+const info = await sandbox.files.getInfo("/home/user/link.txt")
+if (info.symlinkTarget) {
+  console.log(`Links to: ${info.symlinkTarget}`)
+}
+```
+</CodeGroup>
+
+## Error Handling
+
+<CodeGroup>
+```python Python
+from moru.exceptions import NotFoundException
+
+try:
+    sandbox.files.remove("/nonexistent/file.txt")
+except NotFoundException:
+    print("File doesn't exist")
+
+try:
+    info = sandbox.files.get_info("/nonexistent/file.txt")
+except NotFoundException:
+    print("Cannot get info for nonexistent file")
+```
+
+```javascript JavaScript
+import { NotFoundError } from '@moru-ai/core'
+
+try {
+  await sandbox.files.remove("/nonexistent/file.txt")
+} catch (error) {
+  if (error instanceof NotFoundError) {
+    console.log("File doesn't exist")
+  }
+}
+```
+</CodeGroup>
+
+## User Context
+
+All operations can be performed as a different user:
+
+<CodeGroup>
+```python Python
+# Create directory as root
+sandbox.files.make_dir("/etc/myapp", user="root")
+
+# Remove file as specific user
+sandbox.files.remove("/home/alice/temp.txt", user="alice")
+```
+
+```javascript JavaScript
+// Create directory as root
+await sandbox.files.makeDir("/etc/myapp", { user: "root" })
+
+// Remove file as specific user
+await sandbox.files.remove("/home/alice/temp.txt", { user: "alice" })
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Watch Files" icon="eye" href="/files/watch">
+    Monitor file changes in real-time.
+  </Card>
+  <Card title="Run Commands" icon="terminal" href="/commands/run">
+    Execute shell commands for advanced operations.
+  </Card>
+</CardGroup>

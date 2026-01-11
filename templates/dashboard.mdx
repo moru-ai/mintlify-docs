@@ -1,0 +1,145 @@
+---
+title: "Templates in Dashboard"
+description: "Managing templates through the Moru web dashboard"
+---
+
+The Moru Dashboard provides a web interface for viewing and managing your templates.
+
+## Accessing Templates
+
+1. Navigate to [moru.io/dashboard](https://moru.io/dashboard)
+2. Click on **Templates** in the sidebar
+3. View your team's templates
+
+## Template List
+
+The templates list shows:
+
+| Column | Description |
+|--------|-------------|
+| Name | Template alias/name |
+| Template ID | Unique identifier |
+| Access | Public or Private |
+| vCPUs | CPU cores |
+| RAM | Memory in MB |
+| Disk | Disk size in MB |
+| Created | Creation date |
+| envd Version | Environment daemon version |
+
+## Template Details
+
+Click on a template to view:
+
+- **Overview**: Basic information and usage stats
+- **Build History**: Previous builds with logs
+- **Configuration**: Template settings
+- **Usage**: Code examples for using the template
+
+## Build History
+
+View previous builds:
+
+1. Click on a template
+2. Select the **Builds** tab
+3. See all build attempts with status
+
+Build statuses:
+- **Building**: Build in progress
+- **Success**: Build completed successfully
+- **Failed**: Build failed (click for logs)
+
+## Build Logs
+
+View build logs:
+
+1. Go to template details
+2. Click on a build in the history
+3. View real-time or historical logs
+
+Logs include:
+- Package installation output
+- File copy operations
+- Command execution results
+- Error messages
+
+## Creating Templates
+
+While templates are typically created via SDK or CLI, you can view build status and logs in the dashboard.
+
+```bash
+# Create template via CLI
+moru template create my-app --dockerfile ./Dockerfile
+```
+
+Then view progress in the dashboard.
+
+## Deleting Templates
+
+<Warning>
+  Deleting a template is permanent. Sandboxes using this template cannot be created after deletion.
+</Warning>
+
+1. Go to template details
+2. Click **Delete Template**
+3. Confirm deletion
+
+Or use the CLI:
+
+```bash
+moru template delete my-template
+```
+
+## Publishing Templates
+
+Make a template public (available to all Moru users):
+
+1. Go to template details
+2. Click **Publish**
+3. Confirm the action
+
+Or use the CLI:
+
+```bash
+moru template publish my-template
+```
+
+## Unpublishing Templates
+
+Make a template private (only your team):
+
+1. Go to template details
+2. Click **Unpublish**
+3. Confirm the action
+
+```bash
+moru template unpublish my-template
+```
+
+## Team Templates
+
+Templates belong to teams. To switch teams:
+
+1. Click your team name in the header
+2. Select a different team
+3. View that team's templates
+
+## Template Quotas
+
+Your plan determines template limits:
+
+| Plan | Max Templates | Build Concurrency |
+|------|---------------|-------------------|
+| Hobby | 10 | 1 |
+| Pro | 100 | 5 |
+| Enterprise | Unlimited | Custom |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Build Templates" icon="hammer" href="/templates/build">
+    Create templates with the SDK.
+  </Card>
+  <Card title="CLI Templates" icon="terminal" href="/cli/template">
+    Manage templates via CLI.
+  </Card>
+</CardGroup>

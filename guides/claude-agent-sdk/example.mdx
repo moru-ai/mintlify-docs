@@ -1,0 +1,399 @@
+---
+title: "Complete Example"
+description: "A complete example of running Claude Agent SDK in Moru"
+---
+
+This page provides a complete, working example of building an AI coding assistant using Claude Agent SDK in Moru sandboxes.
+
+## Overview
+
+We'll build a simple backend service that:
+
+1. Creates sandboxes with Claude Agent SDK
+2. Runs coding tasks
+3. Persists sessions
+4. Returns results
+
+## Project Structure
+
+```
+claude-agent-service/
+├── src/
+│   ├── index.py          # Main entry point
+│   ├── sandbox.py        # Sandbox management
+│   ├── session.py        # Session persistence
+│   └── api.py            # HTTP API
+├── requirements.txt
+└── README.md
+```
+
+## Dependencies
+
+```txt
+# requirements.txt
+moru>=1.0.0
+flask>=3.0.0
+```
+
+## Sandbox Manager
+
+```python
+# src/sandbox.py
+import os
+from moru import Sandbox
+
+class SandboxManager:
+    def __init__(self):
+        self.template = "claude-code"
+        self.api_key = os.environ.get("ANTHROPIC_API_KEY")
+
+    def create_sandbox(self, session_id: str, timeout: int = 3600) -> Sandbox:
+        """Create a new sandbox for a session."""
+        return Sandbox.create(
+            self.template,
+            timeout=timeout,
+            metadata={"session_id": session_id},
+            envs={"ANTHROPIC_API_KEY": self.api_key}
+        )
+
+    def connect_sandbox(self, sandbox_id: str) -> Sandbox:
+        """Connect to an existing sandbox."""
+        return Sandbox.connect(sandbox_id)
+
+    def run_task(
+        self,
+        sandbox: Sandbox,
+        prompt: str,
+        on_output=None,
+        timeout: int = 300
+    ) -> dict:
+        """Run a Claude task in the sandbox."""
+        # Escape the prompt for shell
+        escaped_prompt = prompt.replace("'", "'\\''")
+
+        result = sandbox.commands.run(
+            f"claude -p '{escaped_prompt}'",
+            timeout=timeout,
+            on_stdout=on_output,
+            on_stderr=on_output
+        )
+
+        return {
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "exit_code": result.exit_code
+        }
+
+    def get_workspace_files(self, sandbox: Sandbox, path: str = "/home/user") -> list:
+        """List files in the workspace."""
+        entries = sandbox.files.list(path, depth=3)
+        return [
+            {
+                "name": e.name,
+                "path": e.path,
+                "type": e.type,
+                "size": e.size
+            }
+            for e in entries
+        ]
+
+    def read_file(self, sandbox: Sandbox, path: str) -> str:
+        """Read a file from the sandbox."""
+        return sandbox.files.read(path)
+```
+
+## Session Manager
+
+```python
+# src/session.py
+import json
+import os
+from pathlib import Path
+from moru import Sandbox
+
+class SessionManager:
+    def __init__(self, storage_path: str = "./sessions"):
+        self.storage_path = Path(storage_path)
+        self.storage_path.mkdir(exist_ok=True)
+
+    def save_session(self, session_id: str, sandbox: Sandbox) -> None:
+        """Save session state from sandbox."""
+        # Find session files
+        result = sandbox.commands.run("find ~/.claude -name '*.jsonl' -type f")
+        session_files = result.stdout.strip().split("\n")
+
+        state = {
+            "sandbox_id": sandbox.sandbox_id,
+            "sessions": {}
+        }
+
+        for path in session_files:
+            if path.strip():
+                try:
+                    content = sandbox.files.read(path)
+                    state["sessions"][path] = content
+                except Exception:
+                    pass
+
+        # Save to local storage
+        state_path = self.storage_path / f"{session_id}.json"
+        with open(state_path, "w") as f:
+            json.dump(state, f)
+
+    def load_session(self, session_id: str) -> dict | None:
+        """Load session state."""
+        state_path = self.storage_path / f"{session_id}.json"
+        if state_path.exists():
+            with open(state_path) as f:
+                return json.load(f)
+        return None
+
+    def restore_session(self, session_id: str, sandbox: Sandbox) -> bool:
+        """Restore session state to sandbox."""
+        state = self.load_session(session_id)
+        if not state:
+            return False
+
+        for path, content in state.get("sessions", {}).items():
+            try:
+                # Ensure directory exists
+                dir_path = "/".join(path.split("/")[:-1])
+                sandbox.files.make_dir(dir_path)
+                sandbox.files.write(path, content)
+            except Exception:
+                pass
+
+        return True
+
+    def list_sessions(self) -> list[str]:
+        """List all saved sessions."""
+        return [
+            f.stem
+            for f in self.storage_path.glob("*.json")
+        ]
+```
+
+## HTTP API
+
+```python
+# src/api.py
+from flask import Flask, request, jsonify
+from .sandbox import SandboxManager
+from .session import SessionManager
+import uuid
+
+app = Flask(__name__)
+sandbox_manager = SandboxManager()
+session_manager = SessionManager()
+
+# Track active sandboxes
+active_sandboxes = {}
+
+@app.route("/sessions", methods=["POST"])
+def create_session():
+    """Create a new session."""
+    session_id = str(uuid.uuid4())
+
+    # Create sandbox
+    sandbox = sandbox_manager.create_sandbox(session_id)
+    active_sandboxes[session_id] = sandbox
+
+    return jsonify({
+        "session_id": session_id,
+        "sandbox_id": sandbox.sandbox_id
+    })
+
+@app.route("/sessions/<session_id>/resume", methods=["POST"])
+def resume_session(session_id):
+    """Resume an existing session."""
+    state = session_manager.load_session(session_id)
+    if not state:
+        return jsonify({"error": "Session not found"}), 404
+
+    # Create new sandbox and restore state
+    sandbox = sandbox_manager.create_sandbox(session_id)
+    session_manager.restore_session(session_id, sandbox)
+    active_sandboxes[session_id] = sandbox
+
+    return jsonify({
+        "session_id": session_id,
+        "sandbox_id": sandbox.sandbox_id
+    })
+
+@app.route("/sessions/<session_id>/task", methods=["POST"])
+def run_task(session_id):
+    """Run a task in a session."""
+    if session_id not in active_sandboxes:
+        return jsonify({"error": "Session not active"}), 404
+
+    sandbox = active_sandboxes[session_id]
+    prompt = request.json.get("prompt")
+
+    if not prompt:
+        return jsonify({"error": "Prompt required"}), 400
+
+    # Run the task
+    output_chunks = []
+    result = sandbox_manager.run_task(
+        sandbox,
+        prompt,
+        on_output=lambda data: output_chunks.append(data)
+    )
+
+    return jsonify({
+        "result": result,
+        "output": "".join(output_chunks)
+    })
+
+@app.route("/sessions/<session_id>/files", methods=["GET"])
+def list_files(session_id):
+    """List files in session workspace."""
+    if session_id not in active_sandboxes:
+        return jsonify({"error": "Session not active"}), 404
+
+    sandbox = active_sandboxes[session_id]
+    files = sandbox_manager.get_workspace_files(sandbox)
+
+    return jsonify({"files": files})
+
+@app.route("/sessions/<session_id>/files/<path:file_path>", methods=["GET"])
+def read_file(session_id, file_path):
+    """Read a file from session workspace."""
+    if session_id not in active_sandboxes:
+        return jsonify({"error": "Session not active"}), 404
+
+    sandbox = active_sandboxes[session_id]
+
+    try:
+        content = sandbox_manager.read_file(sandbox, f"/{file_path}")
+        return jsonify({"content": content})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 404
+
+@app.route("/sessions/<session_id>/save", methods=["POST"])
+def save_session(session_id):
+    """Save session state."""
+    if session_id not in active_sandboxes:
+        return jsonify({"error": "Session not active"}), 404
+
+    sandbox = active_sandboxes[session_id]
+    session_manager.save_session(session_id, sandbox)
+
+    return jsonify({"status": "saved"})
+
+@app.route("/sessions/<session_id>", methods=["DELETE"])
+def end_session(session_id):
+    """End and clean up a session."""
+    if session_id in active_sandboxes:
+        sandbox = active_sandboxes[session_id]
+        session_manager.save_session(session_id, sandbox)
+        sandbox.kill()
+        del active_sandboxes[session_id]
+
+    return jsonify({"status": "ended"})
+
+if __name__ == "__main__":
+    app.run(port=5000)
+```
+
+## Main Entry Point
+
+```python
+# src/index.py
+from .api import app
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
+```
+
+## Usage
+
+### Start the Service
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+export MORU_API_KEY=moru_...
+python -m src.index
+```
+
+### Create a Session
+
+```bash
+curl -X POST http://localhost:5000/sessions
+# {"session_id": "abc-123", "sandbox_id": "sbx_..."}
+```
+
+### Run a Task
+
+```bash
+curl -X POST http://localhost:5000/sessions/abc-123/task \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Create a Python Flask API with one endpoint"}'
+```
+
+### List Created Files
+
+```bash
+curl http://localhost:5000/sessions/abc-123/files
+```
+
+### Read a File
+
+```bash
+curl http://localhost:5000/sessions/abc-123/files/home/user/app.py
+```
+
+### Save and End Session
+
+```bash
+curl -X POST http://localhost:5000/sessions/abc-123/save
+curl -X DELETE http://localhost:5000/sessions/abc-123
+```
+
+### Resume Later
+
+```bash
+curl -X POST http://localhost:5000/sessions/abc-123/resume
+```
+
+## Streaming Responses
+
+For real-time streaming, use WebSockets or Server-Sent Events:
+
+```python
+from flask import Response
+
+@app.route("/sessions/<session_id>/task/stream", methods=["POST"])
+def run_task_stream(session_id):
+    """Run a task with streaming output."""
+    if session_id not in active_sandboxes:
+        return jsonify({"error": "Session not active"}), 404
+
+    sandbox = active_sandboxes[session_id]
+    prompt = request.json.get("prompt")
+
+    def generate():
+        def on_output(data):
+            yield f"data: {json.dumps({'output': data})}\n\n"
+
+        result = sandbox_manager.run_task(
+            sandbox,
+            prompt,
+            on_output=lambda data: None  # Capture handled by stream
+        )
+
+        yield f"data: {json.dumps({'result': result})}\n\n"
+
+    return Response(generate(), mimetype="text/event-stream")
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Maru Example" icon="github" href="/examples/maru">
+    See the full Maru application.
+  </Card>
+  <Card title="Session Persistence" icon="floppy-disk" href="/guides/claude-agent-sdk/session-persistence">
+    Learn more about persistence.
+  </Card>
+</CardGroup>

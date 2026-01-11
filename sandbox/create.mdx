@@ -1,0 +1,348 @@
+---
+title: "Create Sandbox"
+description: "Creating and configuring sandboxes with the Moru SDK"
+---
+
+Create a new sandbox with `Sandbox.create()`. The sandbox starts immediately and is ready for operations once the method returns.
+
+## Basic Usage
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+# Create with default 'base' template
+sandbox = Sandbox.create()
+
+# Create with a specific template
+sandbox = Sandbox.create("python")
+
+# Create with options
+sandbox = Sandbox.create(
+    template="python",
+    timeout=600,  # 10 minutes in seconds
+    metadata={"project": "my-agent"}
+)
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+// Create with default 'base' template
+const sandbox = await Sandbox.create()
+
+// Create with a specific template
+const sandbox = await Sandbox.create("python")
+
+// Create with options
+const sandbox = await Sandbox.create("python", {
+  timeoutMs: 600000,  // 10 minutes
+  metadata: { project: "my-agent" }
+})
+```
+</CodeGroup>
+
+## Options Reference
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `template` | string | `"base"` | Template ID or name |
+| `timeout` / `timeoutMs` | number | 300s / 300000ms | Auto-termination timeout |
+| `metadata` | object | `{}` | Custom key-value pairs |
+| `envs` | object | `{}` | Environment variables |
+| `allow_internet_access` / `allowInternetAccess` | boolean | `true` | Enable outbound network |
+| `network` | object | `null` | Fine-grained network control |
+| `mcp` | object | `null` | MCP server configuration |
+| `secure` | boolean | `true` | Enable security features |
+
+## Template Selection
+
+Templates define the base image and pre-installed packages:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+# Built-in templates
+sandbox = Sandbox.create("base")      # Minimal Ubuntu
+sandbox = Sandbox.create("python")    # Python with common packages
+sandbox = Sandbox.create("node")      # Node.js LTS
+
+# Custom template (by ID or name)
+sandbox = Sandbox.create("my-custom-template")
+sandbox = Sandbox.create("tpl_abc123")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+// Built-in templates
+const sandbox = await Sandbox.create("base")      // Minimal Ubuntu
+const sandbox = await Sandbox.create("python")    // Python with common packages
+const sandbox = await Sandbox.create("node")      // Node.js LTS
+
+// Custom template (by ID or name)
+const sandbox = await Sandbox.create("my-custom-template")
+const sandbox = await Sandbox.create("tpl_abc123")
+```
+</CodeGroup>
+
+## Network Configuration
+
+Control outbound network access:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+# Completely isolated - no network access
+sandbox = Sandbox.create(allow_internet_access=False)
+
+# Allow specific destinations only
+sandbox = Sandbox.create(
+    network={
+        "allow_out": ["api.openai.com", "8.8.8.8/32"],
+        "deny_out": [],
+        "allow_public_traffic": True,  # Allow inbound to exposed ports
+    }
+)
+
+# Block specific destinations
+sandbox = Sandbox.create(
+    network={
+        "deny_out": ["internal.company.com"],
+    }
+)
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+// Completely isolated - no network access
+const sandbox = await Sandbox.create({ allowInternetAccess: false })
+
+// Allow specific destinations only
+const sandbox = await Sandbox.create({
+  network: {
+    allowOut: ["api.openai.com", "8.8.8.8/32"],
+    denyOut: [],
+    allowPublicTraffic: true,  // Allow inbound to exposed ports
+  }
+})
+
+// Block specific destinations
+const sandbox = await Sandbox.create({
+  network: {
+    denyOut: ["internal.company.com"],
+  }
+})
+```
+</CodeGroup>
+
+## Environment Variables
+
+Set environment variables available to all processes:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create(
+    envs={
+        "OPENAI_API_KEY": "sk-...",
+        "DATABASE_URL": "postgres://...",
+        "NODE_ENV": "production",
+    }
+)
+
+# Access in commands
+result = sandbox.commands.run("echo $OPENAI_API_KEY")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create({
+  envs: {
+    OPENAI_API_KEY: "sk-...",
+    DATABASE_URL: "postgres://...",
+    NODE_ENV: "production",
+  }
+})
+
+// Access in commands
+const result = await sandbox.commands.run("echo $OPENAI_API_KEY")
+```
+</CodeGroup>
+
+## Metadata
+
+Attach metadata for organization and filtering:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create(
+    metadata={
+        "user_id": "user_123",
+        "session_id": "sess_abc",
+        "agent_type": "code-assistant",
+    }
+)
+
+# Later, list sandboxes by metadata
+# (using API or dashboard)
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create({
+  metadata: {
+    userId: "user_123",
+    sessionId: "sess_abc",
+    agentType: "code-assistant",
+  }
+})
+```
+</CodeGroup>
+
+## MCP Mode
+
+Enable Model Context Protocol for tool execution:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+# Enable MCP mode
+sandbox = Sandbox.create(mcp=True)
+
+# Get MCP URL for connecting tools
+mcp_url = sandbox.get_mcp_url()
+mcp_token = sandbox.get_mcp_token()
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+// Enable MCP mode
+const sandbox = await Sandbox.create({ mcp: true })
+
+// Get MCP URL for connecting tools
+const mcpUrl = sandbox.getMcpUrl()
+const mcpToken = await sandbox.getMcpToken()
+```
+</CodeGroup>
+
+## Async Creation (Python)
+
+For async Python applications:
+
+```python
+import asyncio
+from moru import AsyncSandbox
+
+async def main():
+    sandbox = await AsyncSandbox.create(
+        template="python",
+        timeout=600,
+        metadata={"project": "async-agent"}
+    )
+
+    result = await sandbox.commands.run("python3 --version")
+    print(result.stdout)
+
+    await sandbox.kill()
+
+asyncio.run(main())
+```
+
+## Beta: Auto-Pause
+
+Create sandboxes that automatically pause when idle (beta feature):
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+# Create with auto-pause enabled
+sandbox = Sandbox.beta_create(
+    template="python",
+    auto_pause=True,
+    auto_pause_timeout=300  # Pause after 5 minutes of inactivity
+)
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+// Create with auto-pause enabled
+const sandbox = await Sandbox.betaCreate("python", {
+  autoPause: true,
+  autoPauseTimeout: 300  // Pause after 5 minutes of inactivity
+})
+```
+</CodeGroup>
+
+## Error Handling
+
+Handle common creation errors:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+from moru.exceptions import (
+    AuthenticationException,
+    NotFoundException,
+    TimeoutException,
+)
+
+try:
+    sandbox = Sandbox.create("my-template")
+except AuthenticationException:
+    print("Invalid API key")
+except NotFoundException:
+    print("Template not found")
+except TimeoutException:
+    print("Sandbox creation timed out")
+```
+
+```javascript JavaScript
+import Sandbox, {
+  AuthenticationError,
+  NotFoundError,
+  TimeoutError,
+} from '@moru-ai/core'
+
+try {
+  const sandbox = await Sandbox.create("my-template")
+} catch (error) {
+  if (error instanceof AuthenticationError) {
+    console.log("Invalid API key")
+  } else if (error instanceof NotFoundError) {
+    console.log("Template not found")
+  } else if (error instanceof TimeoutError) {
+    console.log("Sandbox creation timed out")
+  }
+}
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Connect to Sandbox" icon="plug" href="/sandbox/connect">
+    Reconnect to existing sandboxes.
+  </Card>
+  <Card title="Run Commands" icon="terminal" href="/commands/run">
+    Execute commands in your sandbox.
+  </Card>
+  <Card title="File Operations" icon="folder" href="/files/overview">
+    Read and write files.
+  </Card>
+  <Card title="Custom Templates" icon="layer-group" href="/templates/overview">
+    Create templates with your dependencies.
+  </Card>
+</CardGroup>

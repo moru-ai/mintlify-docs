@@ -1,0 +1,220 @@
+---
+title: "Sandbox Metrics"
+description: "Monitoring resource usage in your sandboxes"
+---
+
+Monitor CPU, memory, and disk usage of your sandboxes using the metrics API.
+
+## Getting Metrics
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+
+# Run some work
+sandbox.commands.run("python3 -c 'x = list(range(10000000))'")
+
+# Get current metrics
+metrics = sandbox.get_metrics()
+
+for m in metrics:
+    print(f"Time: {m.timestamp}")
+    print(f"CPU: {m.cpu_used_pct:.1f}% of {m.cpu_count} cores")
+    print(f"Memory: {m.mem_used / 1024 / 1024:.1f} MB / {m.mem_total / 1024 / 1024:.1f} MB")
+    print(f"Disk: {m.disk_used / 1024 / 1024:.1f} MB / {m.disk_total / 1024 / 1024:.1f} MB")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+// Run some work
+await sandbox.commands.run("python3 -c 'x = list(range(10000000))'")
+
+// Get current metrics
+const metrics = await sandbox.getMetrics()
+
+for (const m of metrics) {
+  console.log(`Time: ${m.timestamp}`)
+  console.log(`CPU: ${m.cpuUsedPct.toFixed(1)}% of ${m.cpuCount} cores`)
+  console.log(`Memory: ${(m.memUsed / 1024 / 1024).toFixed(1)} MB / ${(m.memTotal / 1024 / 1024).toFixed(1)} MB`)
+  console.log(`Disk: ${(m.diskUsed / 1024 / 1024).toFixed(1)} MB / ${(m.diskTotal / 1024 / 1024).toFixed(1)} MB`)
+}
+```
+</CodeGroup>
+
+## Metrics Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `timestamp` | datetime | When metrics were collected |
+| `cpu_count` / `cpuCount` | number | Number of vCPUs |
+| `cpu_used_pct` / `cpuUsedPct` | number | CPU usage percentage |
+| `mem_total` / `memTotal` | number | Total memory in bytes |
+| `mem_used` / `memUsed` | number | Used memory in bytes |
+| `disk_total` / `diskTotal` | number | Total disk space in bytes |
+| `disk_used` / `diskUsed` | number | Used disk space in bytes |
+
+## Time Range Queries
+
+Query metrics for a specific time range:
+
+<CodeGroup>
+```python Python
+from datetime import datetime, timedelta
+
+sandbox = Sandbox.create()
+
+# Get metrics from last 5 minutes
+end = datetime.now()
+start = end - timedelta(minutes=5)
+
+metrics = sandbox.get_metrics(start=start, end=end)
+
+for m in metrics:
+    print(f"{m.timestamp}: CPU {m.cpu_used_pct:.1f}%")
+```
+
+```javascript JavaScript
+const sandbox = await Sandbox.create()
+
+// Get metrics from last 5 minutes
+const end = new Date()
+const start = new Date(end.getTime() - 5 * 60 * 1000)
+
+const metrics = await sandbox.getMetrics({ start, end })
+
+for (const m of metrics) {
+  console.log(`${m.timestamp}: CPU ${m.cpuUsedPct.toFixed(1)}%`)
+}
+```
+</CodeGroup>
+
+## CLI Metrics
+
+View metrics using the CLI:
+
+```bash
+# Show current metrics
+moru sandbox metrics sbx_abc123
+
+# Stream metrics in real-time
+moru sandbox metrics sbx_abc123 --follow
+
+# Output as JSON
+moru sandbox metrics sbx_abc123 --format json
+```
+
+Example output:
+
+```
+CPU:    15.2% (2 cores)
+Memory: 256 MB / 512 MB
+Disk:   1.2 GB / 10 GB
+```
+
+## Dashboard Visualization
+
+The Moru Dashboard provides graphical visualization of metrics:
+
+1. Navigate to [moru.io/dashboard](https://moru.io/dashboard)
+2. Go to **Sandboxes**
+3. Click on your sandbox
+4. View the **Metrics** tab
+
+The dashboard shows:
+- CPU usage over time
+- Memory usage trends
+- Disk usage history
+- Resource limit warnings
+
+## Monitoring Example
+
+Monitor a sandbox and alert on high usage:
+
+<CodeGroup>
+```python Python
+import time
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+
+# Start a workload
+sandbox.commands.run("stress --cpu 2 --timeout 30", background=True)
+
+# Monitor metrics
+for _ in range(6):
+    metrics = sandbox.get_metrics()
+    if metrics:
+        m = metrics[-1]  # Latest metrics
+        cpu_pct = m.cpu_used_pct
+        mem_pct = (m.mem_used / m.mem_total) * 100
+
+        print(f"CPU: {cpu_pct:.1f}%, Memory: {mem_pct:.1f}%")
+
+        if cpu_pct > 80:
+            print("WARNING: High CPU usage!")
+        if mem_pct > 90:
+            print("WARNING: High memory usage!")
+
+    time.sleep(5)
+
+sandbox.kill()
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+// Start a workload
+await sandbox.commands.run("stress --cpu 2 --timeout 30", { background: true })
+
+// Monitor metrics
+for (let i = 0; i < 6; i++) {
+  const metrics = await sandbox.getMetrics()
+  if (metrics.length > 0) {
+    const m = metrics[metrics.length - 1]  // Latest metrics
+    const cpuPct = m.cpuUsedPct
+    const memPct = (m.memUsed / m.memTotal) * 100
+
+    console.log(`CPU: ${cpuPct.toFixed(1)}%, Memory: ${memPct.toFixed(1)}%`)
+
+    if (cpuPct > 80) {
+      console.log("WARNING: High CPU usage!")
+    }
+    if (memPct > 90) {
+      console.log("WARNING: High memory usage!")
+    }
+  }
+
+  await new Promise(resolve => setTimeout(resolve, 5000))
+}
+
+await sandbox.kill()
+```
+</CodeGroup>
+
+## Metrics Retention
+
+Metrics are collected at regular intervals and retained based on your plan:
+
+| Plan | Collection Interval | Retention |
+|------|---------------------|-----------|
+| Hobby | 30 seconds | 24 hours |
+| Pro | 10 seconds | 7 days |
+| Enterprise | Custom | Custom |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Sandbox Logs" icon="file-lines" href="/monitoring/logs">
+    View sandbox logs.
+  </Card>
+  <Card title="Resource Quotas" icon="gauge" href="/limits/quotas">
+    Understand resource limits.
+  </Card>
+</CardGroup>

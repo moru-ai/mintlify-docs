@@ -1,0 +1,248 @@
+---
+title: "Template Commands"
+description: "Building and managing templates with the Moru CLI"
+---
+
+Create, build, and manage templates from the command line.
+
+## Initialize Template
+
+Create a new template project:
+
+```bash
+moru template init
+
+# With options
+moru template init --name my-template --language typescript
+
+# Alias
+moru tpl it
+```
+
+This creates:
+- Template definition file
+- Dockerfile (if applicable)
+- Build scripts
+- README with instructions
+
+### Languages
+
+- `typescript` - TypeScript SDK template
+- `python-sync` - Python synchronous SDK
+- `python-async` - Python async SDK
+
+## Create Template (Build)
+
+Build a template from a Dockerfile:
+
+```bash
+# Basic build
+moru template create my-template
+
+# With Dockerfile path
+moru template create my-template --dockerfile ./Dockerfile
+
+# With start command
+moru template create my-template --cmd "node server.js"
+
+# With ready command (health check)
+moru template create my-template \
+  --cmd "node server.js" \
+  --ready-cmd "curl localhost:3000/health"
+
+# With resources
+moru template create my-template \
+  --cpu-count 4 \
+  --memory-mb 2048
+
+# Skip cache
+moru template create my-template --no-cache
+
+# Alias
+moru tpl ct my-template
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--dockerfile, -d` | Path to Dockerfile |
+| `--cmd, -c` | Start command |
+| `--ready-cmd` | Health check command |
+| `--cpu-count` | Build CPU cores (default: 2) |
+| `--memory-mb` | Build memory in MB (default: 512) |
+| `--no-cache` | Skip Docker cache |
+| `--path` | Root directory path |
+
+## List Templates
+
+View your templates:
+
+```bash
+# List all templates
+moru template list
+
+# Filter by team
+moru template list --team team_abc123
+
+# Output as JSON
+moru template list --format json
+
+# Alias
+moru tpl ls
+```
+
+### Output Columns
+
+| Column | Description |
+|--------|-------------|
+| Access | Public or Private |
+| Template ID | Unique identifier |
+| Template Name | Alias |
+| vCPUs | CPU cores |
+| RAM MiB | Memory |
+| Created by | Creator |
+| Created at | Creation date |
+| Disk size | Disk size in MB |
+
+## Delete Template
+
+Remove a template:
+
+```bash
+# Delete specific template
+moru template delete my-template
+
+# Delete from config
+moru template delete --config ./moru.toml
+
+# Interactive selection
+moru template delete --select
+
+# Skip confirmation
+moru template delete my-template --yes
+
+# Alias
+moru tpl dl my-template
+```
+
+<Warning>
+  Deleting a template is permanent. Sandboxes using this template cannot be created after deletion.
+</Warning>
+
+## Publish Template
+
+Make a template public (visible to all Moru users):
+
+```bash
+# Publish specific template
+moru template publish my-template
+
+# Publish from config
+moru template publish --config ./moru.toml
+
+# Interactive selection
+moru template publish --select
+
+# Skip confirmation
+moru template publish my-template --yes
+
+# Alias
+moru tpl pb my-template
+```
+
+## Unpublish Template
+
+Make a template private (only your team):
+
+```bash
+# Unpublish specific template
+moru template unpublish my-template
+
+# Interactive selection
+moru template unpublish --select
+
+# Alias
+moru tpl upb my-template
+```
+
+## Configuration File
+
+Templates can be configured via `moru.toml`:
+
+```toml
+# moru.toml
+[template]
+id = "tpl_abc123"
+name = "my-template"
+dockerfile = "./Dockerfile"
+
+[template.build]
+cpuCount = 2
+memoryMB = 1024
+startCmd = "node server.js"
+readyCmd = "curl localhost:3000/health"
+```
+
+## Common Workflows
+
+### Build New Template
+
+```bash
+# Create Dockerfile
+cat > Dockerfile << 'EOF'
+FROM node:20-slim
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+CMD ["node", "server.js"]
+EOF
+
+# Build template
+moru template create my-node-app \
+  --dockerfile ./Dockerfile \
+  --cmd "node server.js" \
+  --ready-cmd "curl localhost:3000/health"
+
+# Create sandbox from template
+moru sandbox create my-node-app
+```
+
+### Update Existing Template
+
+```bash
+# Rebuild with same name (creates new version)
+moru template create my-node-app --dockerfile ./Dockerfile
+```
+
+### Share Template
+
+```bash
+# Publish for others to use
+moru template publish my-node-app
+
+# Others can now use it
+moru sandbox create my-node-app
+```
+
+### Cleanup Unused Templates
+
+```bash
+# List templates
+moru template list
+
+# Delete unused ones
+moru template delete old-template-1 old-template-2 --yes
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Build Templates" icon="hammer" href="/templates/build">
+    Advanced template building with SDK.
+  </Card>
+  <Card title="Sandbox Commands" icon="cube" href="/cli/sandbox">
+    Create sandboxes from templates.
+  </Card>
+</CardGroup>

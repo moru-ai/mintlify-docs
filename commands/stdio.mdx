@@ -1,0 +1,346 @@
+---
+title: "Stdin/Stdout/Stderr"
+description: "Handling input and output streams for commands"
+---
+
+Moru provides full control over command I/O streams: stdin (input), stdout (standard output), and stderr (error output).
+
+## Streaming Output
+
+Stream stdout and stderr in real-time:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+
+def on_stdout(data):
+    print(f"[OUT] {data}", end="")
+
+def on_stderr(data):
+    print(f"[ERR] {data}", end="")
+
+result = sandbox.commands.run(
+    """
+    echo "Starting..."
+    echo "Error message" >&2
+    for i in 1 2 3; do
+        echo "Count: $i"
+        sleep 0.5
+    done
+    echo "Done!"
+    """,
+    on_stdout=on_stdout,
+    on_stderr=on_stderr,
+    timeout=30
+)
+
+print(f"\nExit code: {result.exit_code}")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+const result = await sandbox.commands.run(
+  `
+  echo "Starting..."
+  echo "Error message" >&2
+  for i in 1 2 3; do
+      echo "Count: $i"
+      sleep 0.5
+  done
+  echo "Done!"
+  `,
+  {
+    onStdout: (data) => process.stdout.write(`[OUT] ${data}`),
+    onStderr: (data) => process.stderr.write(`[ERR] ${data}`),
+    timeoutMs: 30000
+  }
+)
+
+console.log(`\nExit code: ${result.exitCode}`)
+```
+</CodeGroup>
+
+## Sending Stdin
+
+Send input to a running command:
+
+<CodeGroup>
+```python Python
+# Enable stdin for background command
+handle = sandbox.commands.run(
+    "cat > /home/user/input.txt",
+    background=True,
+    stdin=True  # Keep stdin open
+)
+
+# Send data
+handle.send_stdin("Line 1\n")
+handle.send_stdin("Line 2\n")
+handle.send_stdin("Line 3\n")
+
+# Close stdin (EOF)
+handle.send_stdin("")  # Empty string signals EOF
+
+# Wait for completion
+result = handle.wait()
+
+# Verify file was created
+content = sandbox.files.read("/home/user/input.txt")
+print(content)
+# Line 1
+# Line 2
+# Line 3
+```
+
+```javascript JavaScript
+// Enable stdin for background command
+const handle = await sandbox.commands.run(
+  "cat > /home/user/input.txt",
+  { background: true, stdin: true }  // Keep stdin open
+)
+
+// Send data
+await handle.sendStdin("Line 1\n")
+await handle.sendStdin("Line 2\n")
+await handle.sendStdin("Line 3\n")
+
+// The command will complete when it reads all input and cat exits
+await new Promise(resolve => setTimeout(resolve, 100))
+
+// Verify file was created
+const content = await sandbox.files.read("/home/user/input.txt")
+console.log(content)
+// Line 1
+// Line 2
+// Line 3
+```
+</CodeGroup>
+
+## Interactive Input/Output
+
+<CodeGroup>
+```python Python
+import time
+
+# Start an interactive program
+handle = sandbox.commands.run(
+    "python3 -c 'while True: print(input().upper())'",
+    background=True,
+    stdin=True,
+    on_stdout=lambda data: print(f"Response: {data}", end="")
+)
+
+# Send input and see responses
+handle.send_stdin("hello\n")
+time.sleep(0.1)  # Response: HELLO
+
+handle.send_stdin("world\n")
+time.sleep(0.1)  # Response: WORLD
+
+handle.kill()
+```
+
+```javascript JavaScript
+// Start an interactive program
+const handle = await sandbox.commands.run(
+  "python3 -c 'while True: print(input().upper())'",
+  {
+    background: true,
+    stdin: true,
+    onStdout: (data) => console.log(`Response: ${data}`)
+  }
+)
+
+// Send input and see responses
+await handle.sendStdin("hello\n")
+await new Promise(resolve => setTimeout(resolve, 100))  // Response: HELLO
+
+await handle.sendStdin("world\n")
+await new Promise(resolve => setTimeout(resolve, 100))  // Response: WORLD
+
+await handle.kill()
+```
+</CodeGroup>
+
+## Sending Stdin by PID
+
+Send input to any running process:
+
+<CodeGroup>
+```python Python
+# Start a process
+handle = sandbox.commands.run(
+    "read name; echo Hello, $name",
+    background=True,
+    stdin=True
+)
+
+# Send via command handle
+handle.send_stdin("Alice\n")
+
+# Or send via commands.send_stdin using PID
+sandbox.commands.send_stdin(handle.pid, "additional data\n")
+```
+
+```javascript JavaScript
+// Start a process
+const handle = await sandbox.commands.run(
+  "read name; echo Hello, $name",
+  { background: true, stdin: true }
+)
+
+// Send via command handle
+await handle.sendStdin("Alice\n")
+
+// Or send via commands.sendStdin using PID
+await sandbox.commands.sendStdin(handle.pid, "additional data\n")
+```
+</CodeGroup>
+
+## Large Output Handling
+
+For commands that produce large output:
+
+<CodeGroup>
+```python Python
+# Stream large output without loading into memory
+chunks = []
+
+def collect_output(data):
+    chunks.append(data)
+    if len(chunks) % 100 == 0:
+        print(f"Received {len(chunks)} chunks...")
+
+result = sandbox.commands.run(
+    "cat /dev/urandom | head -c 1000000 | base64",
+    on_stdout=collect_output,
+    timeout=60
+)
+
+total_size = sum(len(c) for c in chunks)
+print(f"Total output: {total_size} bytes")
+```
+
+```javascript JavaScript
+// Stream large output without loading into memory
+const chunks = []
+
+const result = await sandbox.commands.run(
+  "cat /dev/urandom | head -c 1000000 | base64",
+  {
+    onStdout: (data) => {
+      chunks.push(data)
+      if (chunks.length % 100 === 0) {
+        console.log(`Received ${chunks.length} chunks...`)
+      }
+    },
+    timeoutMs: 60000
+  }
+)
+
+const totalSize = chunks.reduce((sum, c) => sum + c.length, 0)
+console.log(`Total output: ${totalSize} bytes`)
+```
+</CodeGroup>
+
+## Separating Stdout and Stderr
+
+<CodeGroup>
+```python Python
+stdout_lines = []
+stderr_lines = []
+
+result = sandbox.commands.run(
+    """
+    echo "Normal output 1"
+    echo "Error 1" >&2
+    echo "Normal output 2"
+    echo "Error 2" >&2
+    """,
+    on_stdout=lambda data: stdout_lines.extend(data.strip().split("\n")),
+    on_stderr=lambda data: stderr_lines.extend(data.strip().split("\n"))
+)
+
+print("Stdout:", stdout_lines)
+print("Stderr:", stderr_lines)
+```
+
+```javascript JavaScript
+const stdoutLines = []
+const stderrLines = []
+
+const result = await sandbox.commands.run(
+  `
+  echo "Normal output 1"
+  echo "Error 1" >&2
+  echo "Normal output 2"
+  echo "Error 2" >&2
+  `,
+  {
+    onStdout: (data) => stdoutLines.push(...data.trim().split("\n")),
+    onStderr: (data) => stderrLines.push(...data.trim().split("\n"))
+  }
+)
+
+console.log("Stdout:", stdoutLines)
+console.log("Stderr:", stderrLines)
+```
+</CodeGroup>
+
+## Progress Tracking
+
+Track progress from command output:
+
+<CodeGroup>
+```python Python
+import re
+
+def parse_progress(data):
+    # Parse progress from wget output
+    match = re.search(r'(\d+)%', data)
+    if match:
+        print(f"\rDownloading: {match.group(1)}%", end="", flush=True)
+
+result = sandbox.commands.run(
+    "wget -q --show-progress https://example.com/large-file.zip",
+    on_stderr=parse_progress,  # wget shows progress on stderr
+    timeout=300
+)
+
+print("\nDownload complete!")
+```
+
+```javascript JavaScript
+const result = await sandbox.commands.run(
+  "wget -q --show-progress https://example.com/large-file.zip",
+  {
+    onStderr: (data) => {
+      // Parse progress from wget output
+      const match = data.match(/(\d+)%/)
+      if (match) {
+        process.stdout.write(`\rDownloading: ${match[1]}%`)
+      }
+    },
+    timeoutMs: 300000
+  }
+)
+
+console.log("\nDownload complete!")
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Background Commands" icon="spinner" href="/commands/background">
+    Long-running processes.
+  </Card>
+  <Card title="Interactive PTY" icon="terminal" href="/commands/pty">
+    Full terminal sessions.
+  </Card>
+</CardGroup>

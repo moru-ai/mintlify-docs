@@ -1,0 +1,193 @@
+---
+title: "Resource Quotas"
+description: "Resource limits and quotas for Moru sandboxes"
+---
+
+Moru sandboxes have resource limits based on your plan.
+
+## Base Tier Limits
+
+| Resource | Limit |
+|----------|-------|
+| Disk per sandbox | 10 GB |
+| Concurrent sandboxes | 20 |
+| Max sandbox duration | 1 hour |
+| Max vCPUs | 2 cores |
+| Max RAM | 4 GB |
+| Concurrent template builds | 5 |
+
+## Plan Comparison
+
+| Feature | Hobby | Pro | Enterprise |
+|---------|-------|-----|------------|
+| Concurrent sandboxes | 20 | 100 | Custom |
+| Max duration | 1 hour | 24 hours | Custom |
+| Max vCPUs | 2 | 8 | Custom |
+| Max RAM | 4 GB | 32 GB | Custom |
+| Disk per sandbox | 10 GB | 50 GB | Custom |
+| Templates | 10 | 100 | Unlimited |
+| Support | Community | Email | Dedicated |
+
+## Checking Current Usage
+
+### Via Dashboard
+
+1. Go to [moru.io/dashboard](https://moru.io/dashboard)
+2. View **Usage** section
+3. See current sandboxes, templates, and resource usage
+
+### Via SDK
+
+<CodeGroup>
+```python Python
+# Check sandbox metrics
+metrics = sandbox.get_metrics()
+for m in metrics:
+    print(f"CPU: {m.cpu_used_pct:.1f}%")
+    print(f"Memory: {m.mem_used / 1024 / 1024:.0f} MB / {m.mem_total / 1024 / 1024:.0f} MB")
+    print(f"Disk: {m.disk_used / 1024 / 1024:.0f} MB / {m.disk_total / 1024 / 1024:.0f} MB")
+```
+
+```javascript JavaScript
+// Check sandbox metrics
+const metrics = await sandbox.getMetrics()
+for (const m of metrics) {
+  console.log(`CPU: ${m.cpuUsedPct.toFixed(1)}%`)
+  console.log(`Memory: ${(m.memUsed / 1024 / 1024).toFixed(0)} MB / ${(m.memTotal / 1024 / 1024).toFixed(0)} MB`)
+  console.log(`Disk: ${(m.diskUsed / 1024 / 1024).toFixed(0)} MB / ${(m.diskTotal / 1024 / 1024).toFixed(0)} MB`)
+}
+```
+</CodeGroup>
+
+### Via CLI
+
+```bash
+# Check sandbox metrics
+moru sandbox metrics sbx_abc123
+
+# List all sandboxes
+moru sandbox list
+```
+
+## Handling Quota Errors
+
+### Concurrent Sandbox Limit
+
+When you hit the concurrent sandbox limit:
+
+<CodeGroup>
+```python Python
+from moru.exceptions import SandboxException
+
+try:
+    sandbox = Sandbox.create()
+except SandboxException as e:
+    if "quota" in str(e).lower():
+        # Kill old sandboxes
+        for info in Sandbox.list():
+            if should_cleanup(info):
+                Sandbox.kill(info.sandbox_id)
+        # Retry
+        sandbox = Sandbox.create()
+```
+
+```javascript JavaScript
+import Sandbox, { SandboxError } from '@moru-ai/core'
+
+try {
+  const sandbox = await Sandbox.create()
+} catch (error) {
+  if (error.message.toLowerCase().includes("quota")) {
+    // Kill old sandboxes
+    for await (const info of Sandbox.list()) {
+      if (shouldCleanup(info)) {
+        const s = await Sandbox.connect(info.sandboxId)
+        await s.kill()
+      }
+    }
+    // Retry
+    const sandbox = await Sandbox.create()
+  }
+}
+```
+</CodeGroup>
+
+### Disk Space Limit
+
+<CodeGroup>
+```python Python
+from moru.exceptions import NotEnoughSpaceException
+
+try:
+    sandbox.files.write("/large_file", data)
+except NotEnoughSpaceException:
+    # Clean up old files
+    sandbox.commands.run("rm -rf /tmp/*")
+    sandbox.commands.run("rm -rf ~/.cache/*")
+    # Retry
+    sandbox.files.write("/large_file", data)
+```
+
+```javascript JavaScript
+import { NotEnoughSpaceError } from '@moru-ai/core'
+
+try {
+  await sandbox.files.write("/large_file", data)
+} catch (error) {
+  if (error instanceof NotEnoughSpaceError) {
+    // Clean up old files
+    await sandbox.commands.run("rm -rf /tmp/*")
+    await sandbox.commands.run("rm -rf ~/.cache/*")
+    // Retry
+    await sandbox.files.write("/large_file", data)
+  }
+}
+```
+</CodeGroup>
+
+## Need More Resources?
+
+If you need higher limits:
+
+1. **Upgrade your plan** via the [dashboard](https://moru.io/dashboard/billing)
+2. **Contact sales** for custom enterprise limits
+3. **Optimize usage** by reusing sandboxes and cleaning up
+
+## Resource Optimization Tips
+
+### Reuse Sandboxes
+
+```python
+# Keep sandbox alive for multiple tasks
+sandbox = Sandbox.create(timeout=3600)  # 1 hour
+
+for task in tasks:
+    sandbox.commands.run(task)
+    sandbox.set_timeout(3600)  # Reset timeout
+
+sandbox.kill()
+```
+
+### Clean Up Promptly
+
+```python
+# Use context manager for automatic cleanup
+with Sandbox.create() as sandbox:
+    result = sandbox.commands.run("task")
+# Sandbox automatically killed
+```
+
+### Use Templates
+
+Pre-install dependencies in templates to reduce setup time and disk usage per sandbox.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Rate Limits" icon="gauge-max" href="/limits/rate-limits">
+    Understand API rate limits.
+  </Card>
+  <Card title="Pricing" icon="credit-card" href="/pricing">
+    View plans and pricing.
+  </Card>
+</CardGroup>

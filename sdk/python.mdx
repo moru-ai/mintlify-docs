@@ -1,0 +1,264 @@
+---
+title: "Python SDK"
+description: "Complete reference for the Moru Python SDK"
+---
+
+The Moru Python SDK provides both synchronous and asynchronous APIs for working with sandboxes.
+
+## Installation
+
+```bash
+pip install moru
+```
+
+## Quick Start
+
+```python
+from moru import Sandbox
+
+# Create a sandbox
+sandbox = Sandbox.create()
+
+# Run a command
+result = sandbox.commands.run("echo 'Hello, World!'")
+print(result.stdout)
+
+# Clean up
+sandbox.kill()
+```
+
+## Authentication
+
+```python
+from moru import Sandbox
+
+# Using environment variable (recommended)
+# export MORU_API_KEY=your_api_key
+sandbox = Sandbox.create()
+
+# Or pass API key directly
+sandbox = Sandbox.create(api_key="your_api_key")
+```
+
+## Synchronous API
+
+### Sandbox
+
+```python
+from moru import Sandbox
+
+# Create
+sandbox = Sandbox.create(template="python", timeout=600)
+
+# Connect to existing
+sandbox = Sandbox.connect("sbx_abc123")
+
+# Check status
+is_running = sandbox.is_running()
+
+# Get info
+info = sandbox.get_info()
+
+# Set timeout
+sandbox.set_timeout(1200)
+
+# Kill
+sandbox.kill()
+
+# Context manager
+with Sandbox.create() as sandbox:
+    result = sandbox.commands.run("echo 'Hello'")
+```
+
+### Files
+
+```python
+# Read
+content = sandbox.files.read("/path/to/file.txt")
+binary = sandbox.files.read("/path/to/file.bin", format="bytes")
+
+# Write
+sandbox.files.write("/path/to/file.txt", "content")
+sandbox.files.write_files([
+    {"path": "/file1.txt", "data": "content1"},
+    {"path": "/file2.txt", "data": "content2"},
+])
+
+# List
+entries = sandbox.files.list("/path/to/dir", depth=2)
+
+# Check existence
+exists = sandbox.files.exists("/path/to/file.txt")
+
+# Get info
+info = sandbox.files.get_info("/path/to/file.txt")
+
+# Delete
+sandbox.files.remove("/path/to/file.txt")
+
+# Rename/Move
+sandbox.files.rename("/old/path", "/new/path")
+
+# Create directory
+sandbox.files.make_dir("/path/to/dir")
+
+# Watch
+handle = sandbox.files.watch_dir("/path/to/dir")
+for event in handle.events():
+    print(f"{event.type}: {event.name}")
+handle.stop()
+```
+
+### Commands
+
+```python
+# Run command
+result = sandbox.commands.run("echo 'Hello'")
+print(result.stdout, result.stderr, result.exit_code)
+
+# With options
+result = sandbox.commands.run(
+    "python script.py",
+    cwd="/app",
+    user="root",
+    envs={"DEBUG": "true"},
+    timeout=120,
+    on_stdout=lambda data: print(data, end=""),
+    on_stderr=lambda data: print(data, end="")
+)
+
+# Background command
+handle = sandbox.commands.run("python server.py", background=True)
+handle.send_stdin("input\n")
+result = handle.wait()
+handle.kill()
+
+# List running
+processes = sandbox.commands.list()
+
+# Kill by PID
+sandbox.commands.kill(pid)
+```
+
+### PTY
+
+```python
+# Create PTY
+handle = sandbox.pty.create(
+    cols=80,
+    rows=24,
+    on_data=lambda data: print(data.decode(), end="")
+)
+handle.send_input("ls -la\n")
+handle.resize(120, 40)
+handle.kill()
+
+# Start with command
+handle = sandbox.pty.start("python3", cols=80, rows=24, on_data=print)
+```
+
+### Template
+
+```python
+from moru import Template
+
+# Build template
+template = (
+    Template()
+    .from_python_image("3.11")
+    .pip_install(["requests", "flask"])
+    .set_start_cmd("python app.py")
+)
+
+info = Template.build(template, alias="my-template")
+
+# Build in background
+info = Template.build_in_background(template, alias="my-template")
+status = Template.get_build_status(info)
+```
+
+## Async API
+
+```python
+import asyncio
+from moru import AsyncSandbox, AsyncTemplate
+
+async def main():
+    # Create sandbox
+    sandbox = await AsyncSandbox.create()
+
+    # Run command
+    result = await sandbox.commands.run("echo 'Hello'")
+    print(result.stdout)
+
+    # Files
+    await sandbox.files.write("/tmp/test.txt", "content")
+    content = await sandbox.files.read("/tmp/test.txt")
+
+    # Clean up
+    await sandbox.kill()
+
+asyncio.run(main())
+
+# Context manager
+async with await AsyncSandbox.create() as sandbox:
+    result = await sandbox.commands.run("echo 'Hello'")
+```
+
+## Error Handling
+
+```python
+from moru import Sandbox
+from moru.exceptions import (
+    SandboxException,
+    TimeoutException,
+    NotFoundException,
+    AuthenticationException,
+    NotEnoughSpaceException,
+    CommandExitException,
+)
+
+try:
+    sandbox = Sandbox.create()
+    result = sandbox.commands.run("python script.py")
+except TimeoutException:
+    print("Operation timed out")
+except NotFoundException:
+    print("Resource not found")
+except AuthenticationException:
+    print("Invalid API key")
+except NotEnoughSpaceException:
+    print("Disk space exhausted")
+except CommandExitException as e:
+    print(f"Command failed with exit code {e.exit_code}")
+except SandboxException as e:
+    print(f"Sandbox error: {e}")
+```
+
+## Type Hints
+
+The SDK includes full type hints:
+
+```python
+from moru import Sandbox
+from moru.sandbox.sandbox_api import SandboxInfo, SandboxMetrics
+from moru.sandbox_sync.filesystem.filesystem import EntryInfo, WriteInfo
+from moru.sandbox_sync.commands.command import CommandResult, ProcessInfo
+
+def process_sandbox(sandbox: Sandbox) -> None:
+    info: SandboxInfo = sandbox.get_info()
+    metrics: list[SandboxMetrics] = sandbox.get_metrics()
+    entries: list[EntryInfo] = sandbox.files.list("/")
+    result: CommandResult = sandbox.commands.run("echo 'Hello'")
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get started in 5 minutes.
+  </Card>
+  <Card title="JavaScript SDK" icon="js" href="/sdk/javascript">
+    JavaScript/TypeScript SDK reference.
+  </Card>
+</CardGroup>

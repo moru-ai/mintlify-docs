@@ -39,9 +39,6 @@
 
 ## Git workflow
 
-- NEVER use --no-verify when committing
-- Ask how to handle uncommitted changes before starting
-- Create a new branch when no clear branch exists for changes
 - Commit frequently throughout development
 - NEVER skip or disable pre-commit hooks
 

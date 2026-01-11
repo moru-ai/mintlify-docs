@@ -3,39 +3,107 @@
   "theme": "mint",
   "name": "Moru",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#6366F1",
+    "light": "#818CF8",
+    "dark": "#4F46E5"
   },
   "favicon": "/favicon.svg",
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
-            "pages": ["index", "quickstart", "development"]
+            "group": "Getting Started",
+            "pages": ["index", "quickstart"]
           },
           {
-            "group": "Customization",
-            "pages": ["essentials/settings", "essentials/navigation"]
-          },
-          {
-            "group": "Writing content",
+            "group": "Sandbox",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "sandbox/overview",
+              "sandbox/create",
+              "sandbox/connect",
+              "sandbox/kill",
+              "sandbox/timeout"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Files",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "files/overview",
+              "files/read",
+              "files/write",
+              "files/list",
+              "files/manage",
+              "files/watch"
+            ]
+          },
+          {
+            "group": "Commands",
+            "pages": [
+              "commands/overview",
+              "commands/run",
+              "commands/background",
+              "commands/pty",
+              "commands/stdio"
+            ]
+          },
+          {
+            "group": "Monitoring",
+            "pages": ["monitoring/logs", "monitoring/metrics"]
+          },
+          {
+            "group": "Templates",
+            "pages": [
+              "templates/overview",
+              "templates/build",
+              "templates/dockerfile",
+              "templates/registries",
+              "templates/dashboard"
+            ]
+          },
+          {
+            "group": "CLI",
+            "pages": [
+              "cli/install",
+              "cli/auth",
+              "cli/sandbox",
+              "cli/template"
+            ]
+          },
+          {
+            "group": "SDKs",
+            "pages": ["sdk/python", "sdk/javascript"]
+          },
+          {
+            "group": "Configuration",
+            "pages": ["configuration/environment"]
+          },
+          {
+            "group": "Errors",
+            "pages": ["errors"]
+          },
+          {
+            "group": "Limits & Pricing",
+            "pages": ["limits/rate-limits", "limits/quotas", "pricing"]
+          },
+          {
+            "group": "Examples",
+            "pages": ["examples/maru"]
+          }
+        ]
+      },
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Claude Agent SDK",
+            "pages": [
+              "guides/claude-agent-sdk/overview",
+              "guides/claude-agent-sdk/setup",
+              "guides/claude-agent-sdk/session-persistence",
+              "guides/claude-agent-sdk/schemas",
+              "guides/claude-agent-sdk/example"
             ]
           }
         ]
@@ -44,14 +112,14 @@
     "global": {
       "anchors": [
         {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
+          "anchor": "Dashboard",
+          "href": "https://moru.io/dashboard",
+          "icon": "gauge"
         },
         {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
+          "anchor": "GitHub",
+          "href": "https://github.com/moru-ai",
+          "icon": "github"
         }
       ]
     }
@@ -64,13 +132,13 @@
     "links": [
       {
         "label": "Support",
-        "href": "mailto:hi@mintlify.com"
+        "href": "mailto:support@moru.io"
       }
     ],
     "primary": {
       "type": "button",
       "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
+      "href": "https://moru.io/dashboard"
     }
   },
   "contextual": {
@@ -87,9 +155,8 @@
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "x": "https://x.com/moru_ai",
+      "github": "https://github.com/moru-ai"
     }
   }
 }

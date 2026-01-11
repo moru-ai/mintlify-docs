@@ -1,0 +1,172 @@
+---
+title: "Filesystem Overview"
+description: "Working with files and directories in Moru sandboxes"
+---
+
+Every sandbox has a complete Linux filesystem. Use `sandbox.files` to read, write, and manage files and directories.
+
+## Quick Reference
+
+| Operation | Method |
+|-----------|--------|
+| Read file | `sandbox.files.read(path)` |
+| Write file | `sandbox.files.write(path, data)` |
+| List directory | `sandbox.files.list(path)` |
+| Check existence | `sandbox.files.exists(path)` |
+| Get file info | `sandbox.files.get_info(path)` |
+| Delete | `sandbox.files.remove(path)` |
+| Rename/Move | `sandbox.files.rename(old, new)` |
+| Create directory | `sandbox.files.make_dir(path)` |
+| Watch for changes | `sandbox.files.watch_dir(path)` |
+
+## Basic Example
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+
+# Write a file
+sandbox.files.write("/home/user/hello.txt", "Hello, World!")
+
+# Read it back
+content = sandbox.files.read("/home/user/hello.txt")
+print(content)  # Hello, World!
+
+# List directory
+entries = sandbox.files.list("/home/user")
+for entry in entries:
+    print(f"{entry.name}: {entry.type}")
+
+# Check if file exists
+if sandbox.files.exists("/home/user/hello.txt"):
+    print("File exists!")
+
+# Get file info
+info = sandbox.files.get_info("/home/user/hello.txt")
+print(f"Size: {info.size} bytes")
+print(f"Modified: {info.modified_time}")
+
+# Delete the file
+sandbox.files.remove("/home/user/hello.txt")
+
+sandbox.kill()
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+// Write a file
+await sandbox.files.write("/home/user/hello.txt", "Hello, World!")
+
+// Read it back
+const content = await sandbox.files.read("/home/user/hello.txt")
+console.log(content)  // Hello, World!
+
+// List directory
+const entries = await sandbox.files.list("/home/user")
+for (const entry of entries) {
+  console.log(`${entry.name}: ${entry.type}`)
+}
+
+// Check if file exists
+if (await sandbox.files.exists("/home/user/hello.txt")) {
+  console.log("File exists!")
+}
+
+// Get file info
+const info = await sandbox.files.getInfo("/home/user/hello.txt")
+console.log(`Size: ${info.size} bytes`)
+console.log(`Modified: ${info.modifiedTime}`)
+
+// Delete the file
+await sandbox.files.remove("/home/user/hello.txt")
+
+await sandbox.kill()
+```
+</CodeGroup>
+
+## File Information
+
+The `EntryInfo` object contains file metadata:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | string | File or directory name |
+| `path` | string | Full path |
+| `type` | `"file"` or `"dir"` | Entry type |
+| `size` | number | Size in bytes |
+| `mode` | number | Unix permission mode |
+| `permissions` | string | Permission string (e.g., `-rw-r--r--`) |
+| `owner` | string | Owner username |
+| `group` | string | Group name |
+| `modified_time` | datetime | Last modification time |
+| `symlink_target` | string? | Target if entry is a symlink |
+
+## User Context
+
+By default, operations run as the `user` user. Specify a different user:
+
+<CodeGroup>
+```python Python
+# Write as root
+sandbox.files.write("/etc/myconfig", "data", user="root")
+
+# Read as specific user
+content = sandbox.files.read("/home/alice/file.txt", user="alice")
+```
+
+```javascript JavaScript
+// Write as root
+await sandbox.files.write("/etc/myconfig", "data", { user: "root" })
+
+// Read as specific user
+const content = await sandbox.files.read("/home/alice/file.txt", { user: "alice" })
+```
+</CodeGroup>
+
+## Request Timeout
+
+Set a timeout for file operations:
+
+<CodeGroup>
+```python Python
+# 30-second timeout for this operation
+content = sandbox.files.read("/large/file.bin", request_timeout=30)
+```
+
+```javascript JavaScript
+// 30-second timeout for this operation
+const content = await sandbox.files.read("/large/file.bin", { requestTimeoutMs: 30000 })
+```
+</CodeGroup>
+
+## Working Directory
+
+The default working directory is `/home/user`. Use absolute paths for clarity:
+
+```python
+# These are equivalent
+sandbox.files.write("/home/user/file.txt", "data")
+sandbox.commands.run("echo 'data' > file.txt")
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Read Files" icon="file" href="/files/read">
+    Read files in different formats.
+  </Card>
+  <Card title="Write Files" icon="pen" href="/files/write">
+    Create and update files.
+  </Card>
+  <Card title="List Directory" icon="folder-open" href="/files/list">
+    List and explore directories.
+  </Card>
+  <Card title="Watch Files" icon="eye" href="/files/watch">
+    Monitor file changes in real-time.
+  </Card>
+</CardGroup>

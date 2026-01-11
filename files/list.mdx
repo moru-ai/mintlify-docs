@@ -1,0 +1,254 @@
+---
+title: "List Directory"
+description: "Listing and exploring directory contents in sandboxes"
+---
+
+Use `sandbox.files.list()` to get the contents of a directory.
+
+## Basic Usage
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+
+# List directory contents
+entries = sandbox.files.list("/home/user")
+
+for entry in entries:
+    print(f"{entry.name} ({entry.type}): {entry.size} bytes")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+// List directory contents
+const entries = await sandbox.files.list("/home/user")
+
+for (const entry of entries) {
+  console.log(`${entry.name} (${entry.type}): ${entry.size} bytes`)
+}
+```
+</CodeGroup>
+
+## Entry Information
+
+Each entry contains detailed metadata:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | string | File or directory name |
+| `path` | string | Full path |
+| `type` | `"file"` or `"dir"` | Entry type |
+| `size` | number | Size in bytes (0 for directories) |
+| `mode` | number | Unix permission mode |
+| `permissions` | string | Permission string (e.g., `-rw-r--r--`) |
+| `owner` | string | Owner username |
+| `group` | string | Group name |
+| `modified_time` | datetime | Last modification time |
+| `symlink_target` | string? | Target path if symlink |
+
+## Recursive Listing
+
+Use the `depth` parameter to list nested directories:
+
+<CodeGroup>
+```python Python
+# List with depth 1 (default) - immediate children only
+entries = sandbox.files.list("/home/user", depth=1)
+
+# List with depth 2 - includes grandchildren
+entries = sandbox.files.list("/home/user", depth=2)
+
+# Deep recursive listing
+entries = sandbox.files.list("/home/user", depth=10)
+
+for entry in entries:
+    print(entry.path)
+```
+
+```javascript JavaScript
+// List with depth 1 (default) - immediate children only
+const entries = await sandbox.files.list("/home/user", { depth: 1 })
+
+// List with depth 2 - includes grandchildren
+const entries = await sandbox.files.list("/home/user", { depth: 2 })
+
+// Deep recursive listing
+const entries = await sandbox.files.list("/home/user", { depth: 10 })
+
+for (const entry of entries) {
+  console.log(entry.path)
+}
+```
+</CodeGroup>
+
+## Filter by Type
+
+Filter entries by file type:
+
+<CodeGroup>
+```python Python
+entries = sandbox.files.list("/home/user")
+
+# Get only files
+files = [e for e in entries if e.type == "file"]
+
+# Get only directories
+dirs = [e for e in entries if e.type == "dir"]
+
+print(f"Files: {len(files)}, Directories: {len(dirs)}")
+```
+
+```javascript JavaScript
+const entries = await sandbox.files.list("/home/user")
+
+// Get only files
+const files = entries.filter(e => e.type === "file")
+
+// Get only directories
+const dirs = entries.filter(e => e.type === "dir")
+
+console.log(`Files: ${files.length}, Directories: ${dirs.length}`)
+```
+</CodeGroup>
+
+## Tree-like Display
+
+Build a tree structure from recursive listing:
+
+<CodeGroup>
+```python Python
+def print_tree(entries, indent=0):
+    # Group by parent directory
+    by_parent = {}
+    for entry in entries:
+        parent = "/".join(entry.path.split("/")[:-1])
+        by_parent.setdefault(parent, []).append(entry)
+
+    def print_dir(path, level):
+        children = by_parent.get(path, [])
+        for child in sorted(children, key=lambda e: e.name):
+            prefix = "  " * level
+            icon = "📁" if child.type == "dir" else "📄"
+            print(f"{prefix}{icon} {child.name}")
+            if child.type == "dir":
+                print_dir(child.path, level + 1)
+
+    print_dir("/home/user", 0)
+
+entries = sandbox.files.list("/home/user", depth=5)
+print_tree(entries)
+```
+
+```javascript JavaScript
+async function printTree(sandbox, path, indent = 0) {
+  const entries = await sandbox.files.list(path)
+  const prefix = "  ".repeat(indent)
+
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    const icon = entry.type === "dir" ? "📁" : "📄"
+    console.log(`${prefix}${icon} ${entry.name}`)
+
+    if (entry.type === "dir") {
+      await printTree(sandbox, entry.path, indent + 1)
+    }
+  }
+}
+
+await printTree(sandbox, "/home/user")
+```
+</CodeGroup>
+
+## List as Different User
+
+<CodeGroup>
+```python Python
+# List as root to see all files
+entries = sandbox.files.list("/root", user="root")
+
+# List as specific user
+entries = sandbox.files.list("/home/alice", user="alice")
+```
+
+```javascript JavaScript
+// List as root to see all files
+const entries = await sandbox.files.list("/root", { user: "root" })
+
+// List as specific user
+const entries = await sandbox.files.list("/home/alice", { user: "alice" })
+```
+</CodeGroup>
+
+## Find Files by Pattern
+
+Combine with commands for pattern matching:
+
+<CodeGroup>
+```python Python
+# Find all Python files
+result = sandbox.commands.run("find /home/user -name '*.py' -type f")
+python_files = result.stdout.strip().split("\n")
+
+# Find files modified in last hour
+result = sandbox.commands.run("find /home/user -mmin -60 -type f")
+recent_files = result.stdout.strip().split("\n")
+```
+
+```javascript JavaScript
+// Find all Python files
+const result = await sandbox.commands.run("find /home/user -name '*.py' -type f")
+const pythonFiles = result.stdout.trim().split("\n")
+
+// Find files modified in last hour
+const recent = await sandbox.commands.run("find /home/user -mmin -60 -type f")
+const recentFiles = recent.stdout.trim().split("\n")
+```
+</CodeGroup>
+
+## Error Handling
+
+<CodeGroup>
+```python Python
+from moru.exceptions import NotFoundException
+
+try:
+    entries = sandbox.files.list("/nonexistent/path")
+except NotFoundException:
+    print("Directory not found")
+```
+
+```javascript JavaScript
+import { NotFoundError } from '@moru-ai/core'
+
+try {
+  const entries = await sandbox.files.list("/nonexistent/path")
+} catch (error) {
+  if (error instanceof NotFoundError) {
+    console.log("Directory not found")
+  }
+}
+```
+</CodeGroup>
+
+## Options Reference
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `depth` | number | 1 | Recursion depth |
+| `user` | string | `"user"` | User context |
+| `request_timeout` / `requestTimeoutMs` | number | - | Operation timeout |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="File Management" icon="folder-gear" href="/files/manage">
+    Create, rename, and delete files.
+  </Card>
+  <Card title="Watch Files" icon="eye" href="/files/watch">
+    Monitor file changes in real-time.
+  </Card>
+</CardGroup>

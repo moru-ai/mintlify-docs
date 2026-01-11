@@ -1,0 +1,271 @@
+---
+title: "Connect to Sandbox"
+description: "Reconnecting to existing and paused sandboxes"
+---
+
+Use `Sandbox.connect()` to reconnect to an existing sandbox. This is useful for:
+
+- Resuming work on a sandbox after your application restarts
+- Connecting multiple clients to the same sandbox
+- Resuming paused sandboxes (beta feature)
+
+## Connect to Running Sandbox
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+# Connect using sandbox ID
+sandbox = Sandbox.connect("sbx_abc123...")
+
+# Now you can use the sandbox normally
+result = sandbox.commands.run("echo 'Reconnected!'")
+print(result.stdout)
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+// Connect using sandbox ID
+const sandbox = await Sandbox.connect("sbx_abc123...")
+
+// Now you can use the sandbox normally
+const result = await sandbox.commands.run("echo 'Reconnected!'")
+console.log(result.stdout)
+```
+</CodeGroup>
+
+## Check if Sandbox is Running
+
+Before connecting, you can check if a sandbox is still active:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.connect("sbx_abc123...")
+
+if sandbox.is_running():
+    print("Sandbox is active")
+    result = sandbox.commands.run("uptime")
+else:
+    print("Sandbox has been terminated")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.connect("sbx_abc123...")
+
+if (await sandbox.isRunning()) {
+  console.log("Sandbox is active")
+  const result = await sandbox.commands.run("uptime")
+} else {
+  console.log("Sandbox has been terminated")
+}
+```
+</CodeGroup>
+
+## Get Sandbox Information
+
+Retrieve metadata and status of a connected sandbox:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.connect("sbx_abc123...")
+info = sandbox.get_info()
+
+print(f"Template: {info.template_id}")
+print(f"Started: {info.started_at}")
+print(f"Ends: {info.end_at}")
+print(f"State: {info.state}")
+print(f"CPUs: {info.cpu_count}")
+print(f"Memory: {info.memory_mb} MB")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.connect("sbx_abc123...")
+const info = await sandbox.getInfo()
+
+console.log(`Template: ${info.templateId}`)
+console.log(`Started: ${info.startedAt}`)
+console.log(`Ends: ${info.endAt}`)
+console.log(`State: ${info.state}`)
+console.log(`CPUs: ${info.cpuCount}`)
+console.log(`Memory: ${info.memoryMB} MB`)
+```
+</CodeGroup>
+
+## Resume Paused Sandbox (Beta)
+
+If a sandbox was paused using `beta_pause()`, reconnect with `connect()`:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+# Sandbox was previously paused
+sandbox = Sandbox.connect("sbx_abc123...")
+
+# Resume the paused sandbox
+sandbox.connect()
+
+# Sandbox is now running again
+result = sandbox.commands.run("ls -la")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+// Sandbox was previously paused
+const sandbox = await Sandbox.connect("sbx_abc123...")
+
+// Resume the paused sandbox
+await sandbox.connect()
+
+// Sandbox is now running again
+const result = await sandbox.commands.run("ls -la")
+```
+</CodeGroup>
+
+## List All Sandboxes
+
+List your sandboxes to find ones to connect to:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+# List running sandboxes (uses pagination)
+for info in Sandbox.list():
+    print(f"{info.sandbox_id}: {info.state}")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+// List running sandboxes (uses pagination)
+const paginator = Sandbox.list()
+for await (const info of paginator) {
+  console.log(`${info.sandboxId}: ${info.state}`)
+}
+```
+</CodeGroup>
+
+## Connection Options
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.connect(
+    "sbx_abc123...",
+    timeout=30,  # Connection timeout in seconds
+)
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.connect("sbx_abc123...", {
+  requestTimeoutMs: 30000,  // Connection timeout
+})
+```
+</CodeGroup>
+
+## Error Handling
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+from moru.exceptions import NotFoundException, TimeoutException
+
+try:
+    sandbox = Sandbox.connect("sbx_abc123...")
+except NotFoundException:
+    print("Sandbox not found or already terminated")
+except TimeoutException:
+    print("Connection timed out")
+```
+
+```javascript JavaScript
+import Sandbox, { NotFoundError, TimeoutError } from '@moru-ai/core'
+
+try {
+  const sandbox = await Sandbox.connect("sbx_abc123...")
+} catch (error) {
+  if (error instanceof NotFoundError) {
+    console.log("Sandbox not found or already terminated")
+  } else if (error instanceof TimeoutError) {
+    console.log("Connection timed out")
+  }
+}
+```
+</CodeGroup>
+
+## Use Cases
+
+### Session Recovery
+
+Store the sandbox ID and reconnect after application restart:
+
+<CodeGroup>
+```python Python
+import json
+from moru import Sandbox
+
+# Save sandbox ID
+sandbox = Sandbox.create()
+with open("session.json", "w") as f:
+    json.dump({"sandbox_id": sandbox.sandbox_id}, f)
+
+# Later, reconnect
+with open("session.json") as f:
+    data = json.load(f)
+
+sandbox = Sandbox.connect(data["sandbox_id"])
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+import fs from 'fs'
+
+// Save sandbox ID
+const sandbox = await Sandbox.create()
+fs.writeFileSync("session.json", JSON.stringify({ sandboxId: sandbox.sandboxId }))
+
+// Later, reconnect
+const data = JSON.parse(fs.readFileSync("session.json", "utf-8"))
+const reconnected = await Sandbox.connect(data.sandboxId)
+```
+</CodeGroup>
+
+### Multiple Clients
+
+Multiple processes can connect to the same sandbox:
+
+```python
+# Process 1
+sandbox = Sandbox.connect("sbx_abc123...")
+sandbox.files.write("/shared/from_process_1.txt", "Hello from process 1")
+
+# Process 2 (different machine/process)
+sandbox = Sandbox.connect("sbx_abc123...")
+content = sandbox.files.read("/shared/from_process_1.txt")
+print(content)  # Hello from process 1
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Kill Sandbox" icon="xmark" href="/sandbox/kill">
+    Terminate sandboxes when done.
+  </Card>
+  <Card title="Timeout & Lifecycle" icon="clock" href="/sandbox/timeout">
+    Extend sandbox timeouts.
+  </Card>
+</CardGroup>

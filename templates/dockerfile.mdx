@@ -1,0 +1,235 @@
+---
+title: "Dockerfile Support"
+description: "Building templates from existing Dockerfiles"
+---
+
+You can build Moru templates directly from Dockerfiles, making it easy to migrate existing Docker-based workflows.
+
+## From Dockerfile Content
+
+<CodeGroup>
+```python Python
+from moru import Template
+
+dockerfile = """
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+
+CMD ["python", "app.py"]
+"""
+
+template = Template().from_dockerfile(dockerfile)
+info = Template.build(template, alias="my-python-app")
+```
+
+```javascript JavaScript
+import { Template } from '@moru-ai/core'
+
+const dockerfile = `
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+
+CMD ["python", "app.py"]
+`
+
+const template = Template().fromDockerfile(dockerfile)
+const info = await Template.build(template, { alias: "my-python-app" })
+```
+</CodeGroup>
+
+## From Dockerfile Path
+
+<CodeGroup>
+```python Python
+from moru import Template
+
+# Read from file path
+template = Template().from_dockerfile("./Dockerfile")
+info = Template.build(template, alias="my-app")
+```
+
+```javascript JavaScript
+import { Template } from '@moru-ai/core'
+
+// Read from file path
+const template = Template().fromDockerfile("./Dockerfile")
+const info = await Template.build(template, { alias: "my-app" })
+```
+</CodeGroup>
+
+## Supported Instructions
+
+| Instruction | Support | Notes |
+|-------------|---------|-------|
+| `FROM` | Full | Base image selection |
+| `RUN` | Full | Execute commands |
+| `COPY` | Full | Copy files |
+| `ADD` | Partial | URLs not supported |
+| `WORKDIR` | Full | Set working directory |
+| `ENV` | Full | Environment variables |
+| `USER` | Full | Set user |
+| `CMD` | Full | Start command |
+| `ENTRYPOINT` | Partial | Converted to CMD |
+| `EXPOSE` | Ignored | Not needed for Moru |
+| `VOLUME` | Ignored | Not applicable |
+| `ARG` | Ignored | Use environment variables |
+
+## Example: Node.js Application
+
+Dockerfile:
+```dockerfile
+FROM node:20-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copy application
+COPY . .
+
+# Start
+EXPOSE 3000
+CMD ["node", "server.js"]
+```
+
+Build it:
+<CodeGroup>
+```python Python
+template = Template().from_dockerfile("./Dockerfile")
+
+# Add a ready command for health checks
+template = template.set_ready_cmd("curl -s localhost:3000/health")
+
+info = Template.build(template, alias="my-node-app")
+```
+
+```javascript JavaScript
+let template = Template().fromDockerfile("./Dockerfile")
+
+// Add a ready command for health checks
+template = template.setReadyCmd("curl -s localhost:3000/health")
+
+const info = await Template.build(template, { alias: "my-node-app" })
+```
+</CodeGroup>
+
+## Example: Multi-stage Build
+
+Multi-stage builds are supported. Only the final stage is used:
+
+```dockerfile
+# Build stage
+FROM node:20 AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# Production stage
+FROM node:20-slim
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+CMD ["node", "dist/server.js"]
+```
+
+<CodeGroup>
+```python Python
+template = Template().from_dockerfile("./Dockerfile")
+info = Template.build(template, alias="my-built-app")
+```
+
+```javascript JavaScript
+const template = Template().fromDockerfile("./Dockerfile")
+const info = await Template.build(template, { alias: "my-built-app" })
+```
+</CodeGroup>
+
+## CLI Build
+
+Use the CLI to build directly from Dockerfile:
+
+```bash
+# Basic build
+moru template create my-app --dockerfile ./Dockerfile
+
+# With start and ready commands
+moru template create my-app \
+  --dockerfile ./Dockerfile \
+  --cmd "node server.js" \
+  --ready-cmd "curl localhost:3000/health"
+
+# With more resources
+moru template create my-app \
+  --dockerfile ./Dockerfile \
+  --cpu-count 4 \
+  --memory-mb 2048
+```
+
+## Combining with Builder API
+
+You can extend a Dockerfile-based template with additional configuration:
+
+<CodeGroup>
+```python Python
+template = (
+    Template()
+    .from_dockerfile("./Dockerfile")
+    .set_envs({"NODE_ENV": "production"})
+    .apt_install(["curl"])  # For health checks
+    .set_start_cmd("node server.js", "curl -s localhost:3000/health")
+)
+
+info = Template.build(template, alias="my-extended-app")
+```
+
+```javascript JavaScript
+const template = Template()
+  .fromDockerfile("./Dockerfile")
+  .setEnvs({ NODE_ENV: "production" })
+  .aptInstall(["curl"])  // For health checks
+  .setStartCmd("node server.js", "curl -s localhost:3000/health")
+
+const info = await Template.build(template, { alias: "my-extended-app" })
+```
+</CodeGroup>
+
+## Limitations
+
+- **No build arguments**: `ARG` instructions are ignored. Use environment variables instead.
+- **No URL ADD**: `ADD` with URLs is not supported. Use `RUN curl` or `RUN wget`.
+- **No volumes**: Moru sandboxes have ephemeral filesystems.
+- **EXPOSE ignored**: All ports are accessible. No explicit port exposure needed.
+
+## Best Practices
+
+1. **Use slim base images**: Smaller images build faster
+2. **Layer caching**: Put rarely-changing instructions first
+3. **Combine RUN commands**: Reduce layers for faster builds
+4. **Add health checks**: Use `set_ready_cmd()` for reliable sandbox startup
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Container Registries" icon="database" href="/templates/registries">
+    Use private container registries.
+  </Card>
+  <Card title="Build Templates" icon="hammer" href="/templates/build">
+    Use the full builder API.
+  </Card>
+</CardGroup>

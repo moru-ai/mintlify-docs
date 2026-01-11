@@ -1,0 +1,228 @@
+---
+title: "Commands Overview"
+description: "Executing shell commands in Moru sandboxes"
+---
+
+Use `sandbox.commands` to execute shell commands in your sandbox. Commands can run in the foreground (blocking) or background (non-blocking), with real-time streaming of stdout and stderr.
+
+## Quick Reference
+
+| Operation | Method |
+|-----------|--------|
+| Run command | `sandbox.commands.run(cmd)` |
+| Background command | `sandbox.commands.run(cmd, background=True)` |
+| List processes | `sandbox.commands.list()` |
+| Kill process | `sandbox.commands.kill(pid)` |
+| Send stdin | `sandbox.commands.send_stdin(pid, data)` |
+| Interactive PTY | `sandbox.pty.create()` |
+
+## Basic Usage
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+
+# Run a simple command
+result = sandbox.commands.run("echo 'Hello, World!'")
+print(result.stdout)  # Hello, World!
+print(result.exit_code)  # 0
+
+# Run with error
+result = sandbox.commands.run("ls /nonexistent")
+print(result.stderr)  # ls: cannot access...
+print(result.exit_code)  # 2
+
+sandbox.kill()
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+// Run a simple command
+const result = await sandbox.commands.run("echo 'Hello, World!'")
+console.log(result.stdout)  // Hello, World!
+console.log(result.exitCode)  // 0
+
+// Run with error
+const errorResult = await sandbox.commands.run("ls /nonexistent")
+console.log(errorResult.stderr)  // ls: cannot access...
+console.log(errorResult.exitCode)  // 2
+
+await sandbox.kill()
+```
+</CodeGroup>
+
+## Command Result
+
+The `CommandResult` object contains:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `stdout` | string | Standard output |
+| `stderr` | string | Standard error |
+| `exit_code` / `exitCode` | number | Exit code (0 = success) |
+| `error` | string? | Error message if command failed to execute |
+
+## Execution Modes
+
+### Foreground (Default)
+
+Command runs and blocks until completion:
+
+```python
+# Blocks until command finishes
+result = sandbox.commands.run("sleep 5 && echo done")
+print(result.stdout)  # done (after 5 seconds)
+```
+
+### Background
+
+Command runs without blocking:
+
+```python
+# Returns immediately
+handle = sandbox.commands.run("python3 server.py", background=True)
+
+# Do other work...
+
+# Later, check on the command
+result = handle.wait()  # Now block until done
+```
+
+## Streaming Output
+
+Receive stdout/stderr in real-time:
+
+<CodeGroup>
+```python Python
+def on_output(data):
+    print(f"Output: {data}", end="")
+
+result = sandbox.commands.run(
+    "for i in 1 2 3; do echo $i; sleep 1; done",
+    on_stdout=on_output,
+    on_stderr=lambda data: print(f"Error: {data}", end=""),
+    timeout=30
+)
+```
+
+```javascript JavaScript
+const result = await sandbox.commands.run(
+  "for i in 1 2 3; do echo $i; sleep 1; done",
+  {
+    onStdout: (data) => process.stdout.write(`Output: ${data}`),
+    onStderr: (data) => process.stderr.write(`Error: ${data}`),
+    timeoutMs: 30000
+  }
+)
+```
+</CodeGroup>
+
+## Environment Variables
+
+Set environment variables for a command:
+
+<CodeGroup>
+```python Python
+result = sandbox.commands.run(
+    "echo $MY_VAR",
+    envs={"MY_VAR": "Hello"}
+)
+print(result.stdout)  # Hello
+```
+
+```javascript JavaScript
+const result = await sandbox.commands.run(
+  "echo $MY_VAR",
+  { envs: { MY_VAR: "Hello" } }
+)
+console.log(result.stdout)  // Hello
+```
+</CodeGroup>
+
+## Working Directory
+
+Specify the working directory:
+
+<CodeGroup>
+```python Python
+result = sandbox.commands.run("pwd", cwd="/tmp")
+print(result.stdout)  # /tmp
+```
+
+```javascript JavaScript
+const result = await sandbox.commands.run("pwd", { cwd: "/tmp" })
+console.log(result.stdout)  // /tmp
+```
+</CodeGroup>
+
+## User Context
+
+Run commands as a different user:
+
+<CodeGroup>
+```python Python
+# Run as root
+result = sandbox.commands.run("whoami", user="root")
+print(result.stdout)  # root
+
+# Run as specific user
+result = sandbox.commands.run("whoami", user="alice")
+```
+
+```javascript JavaScript
+// Run as root
+const result = await sandbox.commands.run("whoami", { user: "root" })
+console.log(result.stdout)  // root
+```
+</CodeGroup>
+
+## Timeouts
+
+Set command timeout:
+
+<CodeGroup>
+```python Python
+from moru.exceptions import TimeoutException
+
+try:
+    # Command timeout (how long the command can run)
+    result = sandbox.commands.run("sleep 60", timeout=5)
+except TimeoutException:
+    print("Command timed out after 5 seconds")
+```
+
+```javascript JavaScript
+import { TimeoutError } from '@moru-ai/core'
+
+try {
+  // Command timeout (how long the command can run)
+  const result = await sandbox.commands.run("sleep 60", { timeoutMs: 5000 })
+} catch (error) {
+  if (error instanceof TimeoutError) {
+    console.log("Command timed out after 5 seconds")
+  }
+}
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Run Commands" icon="play" href="/commands/run">
+    Detailed command execution options.
+  </Card>
+  <Card title="Background Commands" icon="spinner" href="/commands/background">
+    Long-running processes.
+  </Card>
+  <Card title="Interactive PTY" icon="terminal" href="/commands/pty">
+    Interactive terminal sessions.
+  </Card>
+  <Card title="Stdin/Stdout" icon="arrows-left-right" href="/commands/stdio">
+    I/O stream handling.
+  </Card>
+</CardGroup>

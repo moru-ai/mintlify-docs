@@ -1,0 +1,291 @@
+---
+title: "JavaScript SDK"
+description: "Complete reference for the Moru JavaScript/TypeScript SDK"
+---
+
+The Moru JavaScript SDK provides a fully typed async API for working with sandboxes.
+
+## Installation
+
+```bash
+npm install @moru-ai/core
+```
+
+## Quick Start
+
+```typescript
+import Sandbox from '@moru-ai/core'
+
+// Create a sandbox
+const sandbox = await Sandbox.create()
+
+// Run a command
+const result = await sandbox.commands.run("echo 'Hello, World!'")
+console.log(result.stdout)
+
+// Clean up
+await sandbox.kill()
+```
+
+## Authentication
+
+```typescript
+import Sandbox from '@moru-ai/core'
+
+// Using environment variable (recommended)
+// export MORU_API_KEY=your_api_key
+const sandbox = await Sandbox.create()
+
+// Or pass API key directly
+const sandbox = await Sandbox.create({ apiKey: 'your_api_key' })
+```
+
+## Sandbox
+
+```typescript
+import Sandbox from '@moru-ai/core'
+
+// Create
+const sandbox = await Sandbox.create()
+const sandbox = await Sandbox.create('python')
+const sandbox = await Sandbox.create('python', {
+  timeoutMs: 600000,
+  metadata: { project: 'myapp' },
+  envs: { DEBUG: 'true' }
+})
+
+// Connect to existing
+const sandbox = await Sandbox.connect('sbx_abc123')
+
+// Check status
+const isRunning = await sandbox.isRunning()
+
+// Get info
+const info = await sandbox.getInfo()
+
+// Set timeout
+await sandbox.setTimeout(1200000)
+
+// Get public URL for port
+const host = sandbox.getHost(8080)
+
+// Kill
+await sandbox.kill()
+
+// List sandboxes (pagination)
+const paginator = Sandbox.list()
+for await (const info of paginator) {
+  console.log(info.sandboxId)
+}
+```
+
+## Files
+
+```typescript
+// Read
+const text = await sandbox.files.read('/path/to/file.txt')
+const bytes = await sandbox.files.read('/path/to/file.bin', { format: 'bytes' })
+const blob = await sandbox.files.read('/path/to/file.bin', { format: 'blob' })
+const stream = await sandbox.files.read('/path/to/file.bin', { format: 'stream' })
+
+// Write
+await sandbox.files.write('/path/to/file.txt', 'content')
+await sandbox.files.write([
+  { path: '/file1.txt', data: 'content1' },
+  { path: '/file2.txt', data: 'content2' }
+])
+
+// List
+const entries = await sandbox.files.list('/path/to/dir')
+const recursive = await sandbox.files.list('/path/to/dir', { depth: 5 })
+
+// Check existence
+const exists = await sandbox.files.exists('/path/to/file.txt')
+
+// Get info
+const info = await sandbox.files.getInfo('/path/to/file.txt')
+
+// Delete
+await sandbox.files.remove('/path/to/file.txt')
+
+// Rename/Move
+await sandbox.files.rename('/old/path', '/new/path')
+
+// Create directory
+await sandbox.files.makeDir('/path/to/dir')
+
+// Watch
+const handle = await sandbox.files.watchDir('/path', (event) => {
+  console.log(`${event.type}: ${event.name}`)
+})
+await handle.stop()
+```
+
+## Commands
+
+```typescript
+// Run command
+const result = await sandbox.commands.run("echo 'Hello'")
+console.log(result.stdout, result.stderr, result.exitCode)
+
+// With options
+const result = await sandbox.commands.run('python script.py', {
+  cwd: '/app',
+  user: 'root',
+  envs: { DEBUG: 'true' },
+  timeoutMs: 120000,
+  onStdout: (data) => process.stdout.write(data),
+  onStderr: (data) => process.stderr.write(data)
+})
+
+// Background command
+const handle = await sandbox.commands.run('python server.py', { background: true })
+await handle.sendStdin('input\n')
+const result = await handle.wait()
+await handle.kill()
+
+// List running
+const processes = await sandbox.commands.list()
+
+// Kill by PID
+await sandbox.commands.kill(pid)
+```
+
+## PTY
+
+```typescript
+// Create PTY
+const handle = await sandbox.pty.create({
+  cols: 80,
+  rows: 24,
+  onData: (data) => process.stdout.write(data)
+})
+await handle.sendStdin('ls -la\n')
+await handle.resize(120, 40)
+await handle.kill()
+```
+
+## Template
+
+```typescript
+import { Template } from '@moru-ai/core'
+
+// Build template
+const template = Template()
+  .fromPythonImage('3.11')
+  .pipInstall(['requests', 'flask'])
+  .setStartCmd('python app.py')
+
+const info = await Template.build(template, { alias: 'my-template' })
+
+// Build in background
+const info = await Template.buildInBackground(template, { alias: 'my-template' })
+const status = await Template.getBuildStatus(info)
+
+// Convert to Dockerfile (for debugging)
+const dockerfile = Template.toDockerfile(template)
+console.log(dockerfile)
+```
+
+## Error Handling
+
+```typescript
+import Sandbox, {
+  SandboxError,
+  TimeoutError,
+  NotFoundError,
+  AuthenticationError,
+  NotEnoughSpaceError,
+  CommandExitError,
+  RateLimitError
+} from '@moru-ai/core'
+
+try {
+  const sandbox = await Sandbox.create()
+  const result = await sandbox.commands.run('python script.py')
+} catch (error) {
+  if (error instanceof TimeoutError) {
+    console.log('Operation timed out')
+  } else if (error instanceof NotFoundError) {
+    console.log('Resource not found')
+  } else if (error instanceof AuthenticationError) {
+    console.log('Invalid API key')
+  } else if (error instanceof NotEnoughSpaceError) {
+    console.log('Disk space exhausted')
+  } else if (error instanceof CommandExitError) {
+    console.log(`Command failed with exit code ${error.exitCode}`)
+  } else if (error instanceof RateLimitError) {
+    console.log('Rate limit exceeded')
+  } else if (error instanceof SandboxError) {
+    console.log(`Sandbox error: ${error.message}`)
+  }
+}
+```
+
+## TypeScript Types
+
+All types are exported:
+
+```typescript
+import Sandbox, {
+  // Sandbox types
+  SandboxOpts,
+  SandboxConnectOpts,
+  SandboxInfo,
+  SandboxMetrics,
+  SandboxNetworkOpts,
+
+  // File types
+  FileType,
+  EntryInfo,
+  WriteInfo,
+  FilesystemEvent,
+  FilesystemEventType,
+  WatchHandle,
+
+  // Command types
+  CommandResult,
+  CommandHandle,
+  ProcessInfo,
+  CommandStartOpts,
+
+  // Template types
+  Template,
+  TemplateBuilder,
+  BuildInfo,
+  BuildOptions,
+
+  // Errors
+  SandboxError,
+  TimeoutError,
+  NotFoundError,
+  AuthenticationError
+} from '@moru-ai/core'
+```
+
+## ESM and CommonJS
+
+The SDK supports both ESM and CommonJS:
+
+```typescript
+// ESM
+import Sandbox from '@moru-ai/core'
+
+// CommonJS
+const { default: Sandbox } = require('@moru-ai/core')
+```
+
+## Node.js and Browser
+
+The SDK works in Node.js. Browser support is limited due to CORS restrictions on the Moru API.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get started in 5 minutes.
+  </Card>
+  <Card title="Python SDK" icon="python" href="/sdk/python">
+    Python SDK reference.
+  </Card>
+</CardGroup>

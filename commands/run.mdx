@@ -1,0 +1,360 @@
+---
+title: "Run Commands"
+description: "Executing shell commands with full control over options"
+---
+
+Use `sandbox.commands.run()` to execute shell commands. This is the primary method for running commands in your sandbox.
+
+## Basic Execution
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+
+# Simple command
+result = sandbox.commands.run("echo 'Hello'")
+print(result.stdout)  # Hello
+
+# Complex command with pipes
+result = sandbox.commands.run("cat /etc/passwd | grep root | cut -d: -f1")
+print(result.stdout)  # root
+
+# Multi-line script
+result = sandbox.commands.run("""
+for i in 1 2 3; do
+    echo "Number: $i"
+done
+""")
+
+sandbox.kill()
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+// Simple command
+const result = await sandbox.commands.run("echo 'Hello'")
+console.log(result.stdout)  // Hello
+
+// Complex command with pipes
+const grepResult = await sandbox.commands.run("cat /etc/passwd | grep root | cut -d: -f1")
+console.log(grepResult.stdout)  // root
+
+// Multi-line script
+const loopResult = await sandbox.commands.run(`
+for i in 1 2 3; do
+    echo "Number: $i"
+done
+`)
+
+await sandbox.kill()
+```
+</CodeGroup>
+
+## Options Reference
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `background` | boolean | `false` | Run without blocking |
+| `envs` | object | `{}` | Environment variables |
+| `user` | string | `"user"` | User to run as |
+| `cwd` | string | `/home/user` | Working directory |
+| `timeout` / `timeoutMs` | number | 60s / 60000ms | Command timeout |
+| `on_stdout` / `onStdout` | function | - | Stdout callback |
+| `on_stderr` / `onStderr` | function | - | Stderr callback |
+| `stdin` | boolean | `false` | Keep stdin open |
+| `request_timeout` / `requestTimeoutMs` | number | - | API request timeout |
+
+## Environment Variables
+
+<CodeGroup>
+```python Python
+# Set environment variables for the command
+result = sandbox.commands.run(
+    "python3 -c 'import os; print(os.environ.get(\"API_KEY\"))'",
+    envs={
+        "API_KEY": "secret_123",
+        "DEBUG": "true",
+        "PATH": "/usr/local/bin:/usr/bin:/bin"
+    }
+)
+```
+
+```javascript JavaScript
+// Set environment variables for the command
+const result = await sandbox.commands.run(
+  "python3 -c 'import os; print(os.environ.get(\"API_KEY\"))'",
+  {
+    envs: {
+      API_KEY: "secret_123",
+      DEBUG: "true",
+      PATH: "/usr/local/bin:/usr/bin:/bin"
+    }
+  }
+)
+```
+</CodeGroup>
+
+## Working Directory
+
+<CodeGroup>
+```python Python
+# Create and work in a directory
+sandbox.files.make_dir("/home/user/project")
+sandbox.files.write("/home/user/project/script.py", "print('Hello')")
+
+result = sandbox.commands.run("python3 script.py", cwd="/home/user/project")
+print(result.stdout)  # Hello
+```
+
+```javascript JavaScript
+// Create and work in a directory
+await sandbox.files.makeDir("/home/user/project")
+await sandbox.files.write("/home/user/project/script.py", "print('Hello')")
+
+const result = await sandbox.commands.run("python3 script.py", { cwd: "/home/user/project" })
+console.log(result.stdout)  // Hello
+```
+</CodeGroup>
+
+## User Context
+
+<CodeGroup>
+```python Python
+# Run as root for privileged operations
+result = sandbox.commands.run("apt-get update", user="root")
+
+# Check which user is running
+result = sandbox.commands.run("whoami")
+print(result.stdout)  # user
+
+result = sandbox.commands.run("whoami", user="root")
+print(result.stdout)  # root
+```
+
+```javascript JavaScript
+// Run as root for privileged operations
+const result = await sandbox.commands.run("apt-get update", { user: "root" })
+
+// Check which user is running
+const userResult = await sandbox.commands.run("whoami")
+console.log(userResult.stdout)  // user
+
+const rootResult = await sandbox.commands.run("whoami", { user: "root" })
+console.log(rootResult.stdout)  // root
+```
+</CodeGroup>
+
+## Timeouts
+
+<CodeGroup>
+```python Python
+from moru.exceptions import TimeoutException
+
+# Command will be killed after 5 seconds
+try:
+    result = sandbox.commands.run("sleep 60", timeout=5)
+except TimeoutException:
+    print("Command timed out")
+
+# Long-running command with appropriate timeout
+result = sandbox.commands.run(
+    "npm install",
+    timeout=300  # 5 minutes
+)
+```
+
+```javascript JavaScript
+import { TimeoutError } from '@moru-ai/core'
+
+// Command will be killed after 5 seconds
+try {
+  const result = await sandbox.commands.run("sleep 60", { timeoutMs: 5000 })
+} catch (error) {
+  if (error instanceof TimeoutError) {
+    console.log("Command timed out")
+  }
+}
+
+// Long-running command with appropriate timeout
+const result = await sandbox.commands.run(
+  "npm install",
+  { timeoutMs: 300000 }  // 5 minutes
+)
+```
+</CodeGroup>
+
+## Streaming Output
+
+Receive output in real-time as the command runs:
+
+<CodeGroup>
+```python Python
+import sys
+
+def handle_stdout(data):
+    sys.stdout.write(data)
+    sys.stdout.flush()
+
+def handle_stderr(data):
+    sys.stderr.write(data)
+    sys.stderr.flush()
+
+# Stream output in real-time
+result = sandbox.commands.run(
+    "for i in $(seq 1 10); do echo $i; sleep 0.5; done",
+    on_stdout=handle_stdout,
+    on_stderr=handle_stderr,
+    timeout=30
+)
+
+# Final result still contains all output
+print(f"\nTotal output: {len(result.stdout)} chars")
+```
+
+```javascript JavaScript
+// Stream output in real-time
+const result = await sandbox.commands.run(
+  "for i in $(seq 1 10); do echo $i; sleep 0.5; done",
+  {
+    onStdout: (data) => process.stdout.write(data),
+    onStderr: (data) => process.stderr.write(data),
+    timeoutMs: 30000
+  }
+)
+
+// Final result still contains all output
+console.log(`\nTotal output: ${result.stdout.length} chars`)
+```
+</CodeGroup>
+
+## Exit Code Handling
+
+<CodeGroup>
+```python Python
+from moru.exceptions import CommandExitException
+
+# Check exit code manually
+result = sandbox.commands.run("grep pattern /nonexistent/file")
+if result.exit_code != 0:
+    print(f"Command failed with exit code {result.exit_code}")
+    print(f"Error: {result.stderr}")
+
+# Or use exception handling with specific commands
+try:
+    # This will raise if exit code is non-zero
+    result = sandbox.commands.run("false")  # Always exits with 1
+except CommandExitException as e:
+    print(f"Exit code: {e.exit_code}")
+```
+
+```javascript JavaScript
+import { CommandExitError } from '@moru-ai/core'
+
+// Check exit code manually
+const result = await sandbox.commands.run("grep pattern /nonexistent/file")
+if (result.exitCode !== 0) {
+  console.log(`Command failed with exit code ${result.exitCode}`)
+  console.log(`Error: ${result.stderr}`)
+}
+```
+</CodeGroup>
+
+## Complex Scripts
+
+<CodeGroup>
+```python Python
+# Run a complex shell script
+script = """
+#!/bin/bash
+set -e
+
+echo "Setting up environment..."
+cd /home/user
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install requests pandas
+
+echo "Environment ready!"
+"""
+
+result = sandbox.commands.run(script, timeout=120)
+print(result.stdout)
+```
+
+```javascript JavaScript
+// Run a complex shell script
+const script = `
+#!/bin/bash
+set -e
+
+echo "Setting up environment..."
+cd /home/user
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install requests pandas
+
+echo "Environment ready!"
+`
+
+const result = await sandbox.commands.run(script, { timeoutMs: 120000 })
+console.log(result.stdout)
+```
+</CodeGroup>
+
+## Error Handling
+
+<CodeGroup>
+```python Python
+from moru.exceptions import TimeoutException, SandboxException
+
+try:
+    result = sandbox.commands.run("some_command", timeout=30)
+    if result.exit_code != 0:
+        print(f"Command failed: {result.stderr}")
+except TimeoutException:
+    print("Command timed out")
+except SandboxException as e:
+    print(f"Sandbox error: {e}")
+```
+
+```javascript JavaScript
+import { TimeoutError, SandboxError } from '@moru-ai/core'
+
+try {
+  const result = await sandbox.commands.run("some_command", { timeoutMs: 30000 })
+  if (result.exitCode !== 0) {
+    console.log(`Command failed: ${result.stderr}`)
+  }
+} catch (error) {
+  if (error instanceof TimeoutError) {
+    console.log("Command timed out")
+  } else if (error instanceof SandboxError) {
+    console.log(`Sandbox error: ${error.message}`)
+  }
+}
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Background Commands" icon="spinner" href="/commands/background">
+    Run long-running processes.
+  </Card>
+  <Card title="Interactive PTY" icon="terminal" href="/commands/pty">
+    Interactive terminal sessions.
+  </Card>
+</CardGroup>

@@ -1,0 +1,307 @@
+---
+title: "Interactive PTY"
+description: "Pseudo-terminal sessions for interactive commands"
+---
+
+Use `sandbox.pty` for full interactive terminal sessions. PTY (pseudo-terminal) mode is useful for interactive shells, REPLs, and commands that require terminal features.
+
+## Creating a PTY Session
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+
+# Create a PTY session
+handle = sandbox.pty.create(
+    cols=80,
+    rows=24,
+    on_data=lambda data: print(data.decode(), end="")
+)
+
+# Send commands
+handle.send_input("echo 'Hello from PTY'\n")
+handle.send_input("ls -la\n")
+
+# Wait a bit for output
+import time
+time.sleep(1)
+
+# Kill the session
+handle.kill()
+sandbox.kill()
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+// Create a PTY session
+const handle = await sandbox.pty.create({
+  cols: 80,
+  rows: 24,
+  onData: (data) => process.stdout.write(new TextDecoder().decode(data))
+})
+
+// Send commands
+await handle.sendStdin("echo 'Hello from PTY'\n")
+await handle.sendStdin("ls -la\n")
+
+// Wait a bit for output
+await new Promise(resolve => setTimeout(resolve, 1000))
+
+// Kill the session
+await handle.kill()
+await sandbox.kill()
+```
+</CodeGroup>
+
+## PTY Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `cols` | number | Terminal width in columns |
+| `rows` | number | Terminal height in rows |
+| `on_data` / `onData` | function | Callback for terminal output (bytes) |
+| `user` | string | User to run as |
+| `envs` | object | Environment variables |
+| `cwd` | string | Working directory |
+| `timeout` / `timeoutMs` | number | Session timeout |
+
+## Starting with a Command
+
+Start a PTY with a specific command instead of a shell:
+
+<CodeGroup>
+```python Python
+# Start Python REPL in PTY
+handle = sandbox.pty.start(
+    "python3",
+    cols=80,
+    rows=24,
+    on_data=lambda data: print(data.decode(), end="")
+)
+
+# Interact with Python
+handle.send_input("print('Hello')\n")
+handle.send_input("2 + 2\n")
+```
+
+```javascript JavaScript
+// Start Python REPL in PTY
+const handle = await sandbox.pty.start("python3", {
+  cols: 80,
+  rows: 24,
+  onData: (data) => process.stdout.write(new TextDecoder().decode(data))
+})
+
+// Interact with Python
+await handle.sendStdin("print('Hello')\n")
+await handle.sendStdin("2 + 2\n")
+```
+</CodeGroup>
+
+## Terminal Resize
+
+Resize the terminal during a session:
+
+<CodeGroup>
+```python Python
+handle = sandbox.pty.create(cols=80, rows=24, on_data=print)
+
+# Later, resize the terminal
+handle.resize(120, 40)  # New size: 120 columns x 40 rows
+```
+
+```javascript JavaScript
+const handle = await sandbox.pty.create({
+  cols: 80,
+  rows: 24,
+  onData: (data) => console.log(new TextDecoder().decode(data))
+})
+
+// Later, resize the terminal
+await handle.resize(120, 40)  // New size: 120 columns x 40 rows
+```
+</CodeGroup>
+
+## Interactive Shell Example
+
+<CodeGroup>
+```python Python
+import sys
+import tty
+import termios
+
+sandbox = Sandbox.create()
+
+def on_output(data):
+    sys.stdout.buffer.write(data)
+    sys.stdout.flush()
+
+handle = sandbox.pty.create(
+    cols=80,
+    rows=24,
+    on_data=on_output
+)
+
+# Set terminal to raw mode
+old_settings = termios.tcgetattr(sys.stdin)
+try:
+    tty.setraw(sys.stdin.fileno())
+
+    # Read input and send to PTY
+    while True:
+        char = sys.stdin.read(1)
+        if char == '\x03':  # Ctrl+C
+            break
+        handle.send_input(char)
+finally:
+    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+    handle.kill()
+    sandbox.kill()
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+import readline from 'readline'
+
+const sandbox = await Sandbox.create()
+
+const handle = await sandbox.pty.create({
+  cols: process.stdout.columns || 80,
+  rows: process.stdout.rows || 24,
+  onData: (data) => process.stdout.write(data)
+})
+
+// Set raw mode for input
+if (process.stdin.isTTY) {
+  process.stdin.setRawMode(true)
+}
+process.stdin.resume()
+
+process.stdin.on('data', (data) => {
+  handle.sendStdin(data.toString())
+})
+
+// Clean up on exit
+process.on('SIGINT', async () => {
+  await handle.kill()
+  await sandbox.kill()
+  process.exit()
+})
+```
+</CodeGroup>
+
+## Vim/Editor Example
+
+<CodeGroup>
+```python Python
+sandbox = Sandbox.create()
+
+# Install vim if needed
+sandbox.commands.run("apt-get update && apt-get install -y vim", user="root")
+
+# Create a file to edit
+sandbox.files.write("/home/user/test.py", "print('Hello')")
+
+# Open vim in PTY
+handle = sandbox.pty.start(
+    "vim /home/user/test.py",
+    cols=120,
+    rows=40,
+    on_data=lambda data: print(data.decode(), end="")
+)
+
+# Send vim commands
+handle.send_input("i")  # Insert mode
+handle.send_input("# Modified by PTY\n")
+handle.send_input("\x1b")  # Escape
+handle.send_input(":wq\n")  # Save and quit
+
+handle.wait()
+```
+
+```javascript JavaScript
+const sandbox = await Sandbox.create()
+
+// Install vim if needed
+await sandbox.commands.run("apt-get update && apt-get install -y vim", { user: "root" })
+
+// Create a file to edit
+await sandbox.files.write("/home/user/test.py", "print('Hello')")
+
+// Open vim in PTY
+const handle = await sandbox.pty.create({
+  cols: 120,
+  rows: 40,
+  onData: (data) => process.stdout.write(data)
+})
+
+await handle.sendStdin("vim /home/user/test.py\n")
+
+// Wait for vim to start
+await new Promise(resolve => setTimeout(resolve, 500))
+
+// Send vim commands
+await handle.sendStdin("i")  // Insert mode
+await handle.sendStdin("# Modified by PTY\n")
+await handle.sendStdin("\x1b")  // Escape
+await handle.sendStdin(":wq\n")  // Save and quit
+
+await handle.wait()
+```
+</CodeGroup>
+
+## Environment Variables
+
+<CodeGroup>
+```python Python
+handle = sandbox.pty.create(
+    cols=80,
+    rows=24,
+    envs={
+        "TERM": "xterm-256color",
+        "EDITOR": "vim",
+        "PS1": "moru> "
+    },
+    on_data=lambda data: print(data.decode(), end="")
+)
+```
+
+```javascript JavaScript
+const handle = await sandbox.pty.create({
+  cols: 80,
+  rows: 24,
+  envs: {
+    TERM: "xterm-256color",
+    EDITOR: "vim",
+    PS1: "moru> "
+  },
+  onData: (data) => process.stdout.write(data)
+})
+```
+</CodeGroup>
+
+## When to Use PTY vs Regular Commands
+
+| Use PTY When | Use Regular Commands When |
+|--------------|--------------------------|
+| Interactive shells (bash, zsh) | Simple command execution |
+| REPLs (python, node) | Scripts and automation |
+| Text editors (vim, nano) | Background processes |
+| Commands with progress bars | Getting command output |
+| Terminal UI applications | Streaming logs |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Stdin/Stdout" icon="arrows-left-right" href="/commands/stdio">
+    I/O stream handling.
+  </Card>
+  <Card title="Background Commands" icon="spinner" href="/commands/background">
+    Non-blocking command execution.
+  </Card>
+</CardGroup>

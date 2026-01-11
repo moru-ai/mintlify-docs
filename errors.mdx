@@ -1,0 +1,363 @@
+---
+title: "Error Reference"
+description: "Common errors and troubleshooting for Moru"
+---
+
+This page covers common errors you may encounter when using Moru and how to resolve them.
+
+## Error Types
+
+### SandboxError / SandboxException
+
+Base class for all Moru errors. Catch this to handle any Moru error.
+
+<CodeGroup>
+```python Python
+from moru.exceptions import SandboxException
+
+try:
+    sandbox = Sandbox.create()
+except SandboxException as e:
+    print(f"Moru error: {e}")
+```
+
+```javascript JavaScript
+import { SandboxError } from '@moru-ai/core'
+
+try {
+  const sandbox = await Sandbox.create()
+} catch (error) {
+  if (error instanceof SandboxError) {
+    console.log(`Moru error: ${error.message}`)
+  }
+}
+```
+</CodeGroup>
+
+### TimeoutError / TimeoutException
+
+Raised when an operation times out.
+
+**Common causes:**
+- Sandbox creation took too long
+- Command exceeded timeout
+- Network issues
+
+**Solutions:**
+- Increase timeout value
+- Check network connectivity
+- Use a template with pre-installed dependencies
+
+<CodeGroup>
+```python Python
+from moru.exceptions import TimeoutException
+
+try:
+    result = sandbox.commands.run("long_command", timeout=300)
+except TimeoutException:
+    print("Command timed out, consider increasing timeout")
+```
+
+```javascript JavaScript
+import { TimeoutError } from '@moru-ai/core'
+
+try {
+  const result = await sandbox.commands.run("long_command", { timeoutMs: 300000 })
+} catch (error) {
+  if (error instanceof TimeoutError) {
+    console.log("Command timed out, consider increasing timeout")
+  }
+}
+```
+</CodeGroup>
+
+### NotFoundError / NotFoundException
+
+Resource not found - sandbox, template, or file doesn't exist.
+
+**Common causes:**
+- Sandbox was terminated
+- Template doesn't exist
+- File path is incorrect
+
+<CodeGroup>
+```python Python
+from moru.exceptions import NotFoundException
+
+try:
+    sandbox = Sandbox.connect("sbx_nonexistent")
+except NotFoundException:
+    print("Sandbox not found - it may have been terminated")
+```
+
+```javascript JavaScript
+import { NotFoundError } from '@moru-ai/core'
+
+try {
+  const sandbox = await Sandbox.connect("sbx_nonexistent")
+} catch (error) {
+  if (error instanceof NotFoundError) {
+    console.log("Sandbox not found - it may have been terminated")
+  }
+}
+```
+</CodeGroup>
+
+### AuthenticationError / AuthenticationException
+
+Authentication failed - invalid or missing API key.
+
+**Solutions:**
+- Verify your API key is correct
+- Check if the key has necessary permissions
+- Ensure `MORU_API_KEY` environment variable is set
+
+<CodeGroup>
+```python Python
+from moru.exceptions import AuthenticationException
+
+try:
+    sandbox = Sandbox.create()
+except AuthenticationException:
+    print("Invalid API key - check your MORU_API_KEY")
+```
+
+```javascript JavaScript
+import { AuthenticationError } from '@moru-ai/core'
+
+try {
+  const sandbox = await Sandbox.create()
+} catch (error) {
+  if (error instanceof AuthenticationError) {
+    console.log("Invalid API key - check your MORU_API_KEY")
+  }
+}
+```
+</CodeGroup>
+
+### RateLimitError
+
+Too many requests - rate limit exceeded.
+
+**Solutions:**
+- Wait and retry with exponential backoff
+- Reduce request frequency
+- Contact support for higher limits
+
+<CodeGroup>
+```python Python
+import time
+from moru.exceptions import SandboxException
+
+def create_with_retry(max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            return Sandbox.create()
+        except SandboxException as e:
+            if "rate limit" in str(e).lower():
+                wait = 2 ** attempt
+                print(f"Rate limited, waiting {wait}s...")
+                time.sleep(wait)
+            else:
+                raise
+    raise Exception("Max retries exceeded")
+```
+
+```javascript JavaScript
+import Sandbox, { RateLimitError } from '@moru-ai/core'
+
+async function createWithRetry(maxRetries = 3) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await Sandbox.create()
+    } catch (error) {
+      if (error instanceof RateLimitError) {
+        const wait = Math.pow(2, attempt) * 1000
+        console.log(`Rate limited, waiting ${wait}ms...`)
+        await new Promise(resolve => setTimeout(resolve, wait))
+      } else {
+        throw error
+      }
+    }
+  }
+  throw new Error("Max retries exceeded")
+}
+```
+</CodeGroup>
+
+### NotEnoughSpaceError / NotEnoughSpaceException
+
+Disk space exhausted in sandbox.
+
+**Solutions:**
+- Delete unnecessary files
+- Use a larger disk quota
+- Start fresh with a new sandbox
+
+<CodeGroup>
+```python Python
+from moru.exceptions import NotEnoughSpaceException
+
+try:
+    sandbox.files.write("/large_file", large_data)
+except NotEnoughSpaceException:
+    print("Disk full - delete files or create new sandbox")
+```
+
+```javascript JavaScript
+import { NotEnoughSpaceError } from '@moru-ai/core'
+
+try {
+  await sandbox.files.write("/large_file", largeData)
+} catch (error) {
+  if (error instanceof NotEnoughSpaceError) {
+    console.log("Disk full - delete files or create new sandbox")
+  }
+}
+```
+</CodeGroup>
+
+### CommandExitError / CommandExitException
+
+Command exited with non-zero exit code.
+
+<CodeGroup>
+```python Python
+from moru.exceptions import CommandExitException
+
+try:
+    result = sandbox.commands.run("python script.py")
+except CommandExitException as e:
+    print(f"Command failed with exit code {e.exit_code}")
+    print(f"stderr: {e.stderr}")
+```
+
+```javascript JavaScript
+import { CommandExitError } from '@moru-ai/core'
+
+try {
+  const result = await sandbox.commands.run("python script.py")
+} catch (error) {
+  if (error instanceof CommandExitError) {
+    console.log(`Command failed with exit code ${error.exitCode}`)
+    console.log(`stderr: ${error.stderr}`)
+  }
+}
+```
+</CodeGroup>
+
+### TemplateError / TemplateException
+
+Template incompatibility or version issues.
+
+**Solutions:**
+- Rebuild the template
+- Update to a newer template version
+- Check template build logs
+
+### BuildError / BuildException
+
+Template build failed.
+
+**Solutions:**
+- Check build logs
+- Verify Dockerfile is correct
+- Ensure dependencies are available
+
+## Common Issues
+
+### "Sandbox not responding"
+
+The sandbox may have timed out or crashed.
+
+1. Check if sandbox is still running: `sandbox.is_running()`
+2. Check sandbox logs via CLI: `moru sandbox logs sbx_id`
+3. Create a new sandbox if needed
+
+### "Connection refused"
+
+Network connectivity issues.
+
+1. Verify internet connectivity
+2. Check if sandbox allows outbound connections
+3. Verify the port is correct for `getHost()`
+
+### "Permission denied"
+
+File or command permission issues.
+
+1. Use `user="root"` for privileged operations
+2. Check file permissions with `sandbox.files.get_info()`
+3. Ensure template has correct user setup
+
+## Error Handling Pattern
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+from moru.exceptions import (
+    SandboxException,
+    TimeoutException,
+    NotFoundException,
+    AuthenticationException,
+)
+
+def run_in_sandbox():
+    try:
+        sandbox = Sandbox.create()
+        try:
+            result = sandbox.commands.run("python script.py")
+            return result.stdout
+        finally:
+            sandbox.kill()
+    except AuthenticationException:
+        raise ValueError("Invalid API key")
+    except NotFoundException:
+        raise ValueError("Template not found")
+    except TimeoutException:
+        raise TimeoutError("Operation timed out")
+    except SandboxException as e:
+        raise RuntimeError(f"Sandbox error: {e}")
+```
+
+```javascript JavaScript
+import Sandbox, {
+  SandboxError,
+  TimeoutError,
+  NotFoundError,
+  AuthenticationError
+} from '@moru-ai/core'
+
+async function runInSandbox() {
+  let sandbox
+  try {
+    sandbox = await Sandbox.create()
+    const result = await sandbox.commands.run("python script.py")
+    return result.stdout
+  } catch (error) {
+    if (error instanceof AuthenticationError) {
+      throw new Error("Invalid API key")
+    } else if (error instanceof NotFoundError) {
+      throw new Error("Template not found")
+    } else if (error instanceof TimeoutError) {
+      throw new Error("Operation timed out")
+    } else if (error instanceof SandboxError) {
+      throw new Error(`Sandbox error: ${error.message}`)
+    }
+    throw error
+  } finally {
+    if (sandbox) {
+      await sandbox.kill()
+    }
+  }
+}
+```
+</CodeGroup>
+
+## Getting Help
+
+If you encounter persistent issues:
+
+1. Check the [dashboard](https://moru.io/dashboard) for system status
+2. Review sandbox logs for detailed error messages
+3. Report issues at [github.com/moru-ai](https://github.com/moru-ai)

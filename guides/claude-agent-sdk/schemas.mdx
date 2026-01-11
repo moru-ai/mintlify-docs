@@ -1,0 +1,311 @@
+---
+title: "Session Schemas"
+description: "Understanding Claude Agent SDK session file formats"
+---
+
+Claude Agent SDK stores session data in JSONL (JSON Lines) format. Understanding these schemas helps you parse, analyze, and manipulate session data.
+
+## File Locations
+
+| File | Location | Purpose |
+|------|----------|---------|
+| Session | `~/.claude/projects/{hash}/{session}.jsonl` | Conversation history |
+| History | `~/.claude/projects/{hash}/history.jsonl` | Session metadata |
+
+## Session File Format
+
+Each line in the session file is a JSON object representing a message or event.
+
+### Message Types
+
+#### User Message
+
+```json
+{
+  "type": "user",
+  "message": {
+    "content": "Create a hello world script",
+    "role": "user"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+#### Assistant Message
+
+```json
+{
+  "type": "assistant",
+  "message": {
+    "content": "I'll create a simple hello world script for you.",
+    "role": "assistant"
+  },
+  "timestamp": "2024-01-15T10:30:05Z"
+}
+```
+
+#### Tool Use
+
+```json
+{
+  "type": "assistant",
+  "message": {
+    "role": "assistant",
+    "content": [
+      {
+        "type": "tool_use",
+        "id": "tool_01abc",
+        "name": "write_file",
+        "input": {
+          "path": "hello.py",
+          "content": "print('Hello, World!')"
+        }
+      }
+    ]
+  },
+  "timestamp": "2024-01-15T10:30:10Z"
+}
+```
+
+#### Tool Result
+
+```json
+{
+  "type": "tool_result",
+  "tool_use_id": "tool_01abc",
+  "content": "File written successfully",
+  "is_error": false,
+  "timestamp": "2024-01-15T10:30:11Z"
+}
+```
+
+#### Thinking (Extended Thinking)
+
+```json
+{
+  "type": "assistant",
+  "message": {
+    "role": "assistant",
+    "content": [
+      {
+        "type": "thinking",
+        "thinking": "Let me analyze the user's request..."
+      }
+    ]
+  },
+  "timestamp": "2024-01-15T10:30:03Z"
+}
+```
+
+## History File Format
+
+The history file tracks session metadata:
+
+```json
+{
+  "session_id": "sess_abc123",
+  "started_at": "2024-01-15T10:30:00Z",
+  "last_activity": "2024-01-15T11:45:00Z",
+  "project_path": "/home/user/project",
+  "message_count": 42
+}
+```
+
+## Parsing Sessions
+
+### Python
+
+```python
+import json
+from pathlib import Path
+from typing import Generator
+
+def parse_session(session_path: str) -> Generator[dict, None, None]:
+    """Parse a session JSONL file."""
+    with open(session_path) as f:
+        for line in f:
+            if line.strip():
+                yield json.loads(line)
+
+def get_conversation(session_path: str) -> list[dict]:
+    """Extract conversation messages."""
+    messages = []
+    for entry in parse_session(session_path):
+        if entry.get("type") in ["user", "assistant"]:
+            messages.append({
+                "role": entry["message"]["role"],
+                "content": entry["message"]["content"],
+                "timestamp": entry.get("timestamp")
+            })
+    return messages
+
+def get_tool_uses(session_path: str) -> list[dict]:
+    """Extract tool usage."""
+    tool_uses = []
+    for entry in parse_session(session_path):
+        if entry.get("type") == "assistant":
+            content = entry["message"].get("content", [])
+            if isinstance(content, list):
+                for item in content:
+                    if item.get("type") == "tool_use":
+                        tool_uses.append(item)
+    return tool_uses
+```
+
+### JavaScript
+
+```javascript
+import fs from 'fs'
+import readline from 'readline'
+
+async function* parseSession(sessionPath) {
+  const fileStream = fs.createReadStream(sessionPath)
+  const rl = readline.createInterface({
+    input: fileStream,
+    crlfDelay: Infinity
+  })
+
+  for await (const line of rl) {
+    if (line.trim()) {
+      yield JSON.parse(line)
+    }
+  }
+}
+
+async function getConversation(sessionPath) {
+  const messages = []
+  for await (const entry of parseSession(sessionPath)) {
+    if (["user", "assistant"].includes(entry.type)) {
+      messages.push({
+        role: entry.message.role,
+        content: entry.message.content,
+        timestamp: entry.timestamp
+      })
+    }
+  }
+  return messages
+}
+
+async function getToolUses(sessionPath) {
+  const toolUses = []
+  for await (const entry of parseSession(sessionPath)) {
+    if (entry.type === "assistant") {
+      const content = entry.message?.content || []
+      if (Array.isArray(content)) {
+        for (const item of content) {
+          if (item.type === "tool_use") {
+            toolUses.push(item)
+          }
+        }
+      }
+    }
+  }
+  return toolUses
+}
+```
+
+## Tool Types
+
+Common tool types in Claude Agent SDK:
+
+| Tool | Purpose | Input |
+|------|---------|-------|
+| `read_file` | Read file contents | `{ path: string }` |
+| `write_file` | Write/create file | `{ path: string, content: string }` |
+| `edit_file` | Edit file | `{ path: string, edits: [...] }` |
+| `run_command` | Execute shell command | `{ command: string }` |
+| `search_files` | Search for files | `{ pattern: string, path?: string }` |
+| `list_directory` | List directory | `{ path: string }` |
+
+## Analyzing Sessions
+
+### Count Tool Usage
+
+```python
+from collections import Counter
+
+def analyze_tool_usage(session_path: str) -> dict:
+    """Analyze tool usage in a session."""
+    tool_counts = Counter()
+
+    for entry in parse_session(session_path):
+        if entry.get("type") == "assistant":
+            content = entry["message"].get("content", [])
+            if isinstance(content, list):
+                for item in content:
+                    if item.get("type") == "tool_use":
+                        tool_counts[item["name"]] += 1
+
+    return dict(tool_counts)
+
+# Example output:
+# {'write_file': 5, 'run_command': 12, 'read_file': 8}
+```
+
+### Extract File Changes
+
+```python
+def get_file_changes(session_path: str) -> list[dict]:
+    """Extract all file modifications."""
+    changes = []
+
+    for entry in parse_session(session_path):
+        if entry.get("type") == "assistant":
+            content = entry["message"].get("content", [])
+            if isinstance(content, list):
+                for item in content:
+                    if item.get("type") == "tool_use":
+                        if item["name"] in ["write_file", "edit_file"]:
+                            changes.append({
+                                "action": item["name"],
+                                "path": item["input"]["path"],
+                                "timestamp": entry.get("timestamp")
+                            })
+
+    return changes
+```
+
+## Session Reconstruction
+
+Reconstruct conversation for resumption:
+
+```python
+def reconstruct_for_api(session_path: str) -> list[dict]:
+    """Reconstruct session in API format."""
+    messages = []
+
+    for entry in parse_session(session_path):
+        if entry.get("type") == "user":
+            messages.append({
+                "role": "user",
+                "content": entry["message"]["content"]
+            })
+        elif entry.get("type") == "assistant":
+            messages.append({
+                "role": "assistant",
+                "content": entry["message"]["content"]
+            })
+        elif entry.get("type") == "tool_result":
+            # Tool results are part of the conversation
+            messages.append({
+                "role": "user",
+                "content": [{
+                    "type": "tool_result",
+                    "tool_use_id": entry["tool_use_id"],
+                    "content": entry["content"]
+                }]
+            })
+
+    return messages
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Session Persistence" icon="floppy-disk" href="/guides/claude-agent-sdk/session-persistence">
+    Learn to persist sessions.
+  </Card>
+  <Card title="Complete Example" icon="rocket" href="/guides/claude-agent-sdk/example">
+    See a full implementation.
+  </Card>
+</CardGroup>

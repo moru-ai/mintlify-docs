@@ -1,0 +1,239 @@
+---
+title: "Write Files"
+description: "Creating and writing files in sandboxes"
+---
+
+Use `sandbox.files.write()` to create or update files. Parent directories are created automatically.
+
+## Write Text
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+
+# Write a text file
+sandbox.files.write("/home/user/hello.txt", "Hello, World!")
+
+# Write multi-line content
+sandbox.files.write("/home/user/script.py", """
+import sys
+print(f"Python {sys.version}")
+""")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+// Write a text file
+await sandbox.files.write("/home/user/hello.txt", "Hello, World!")
+
+// Write multi-line content
+await sandbox.files.write("/home/user/script.py", `
+import sys
+print(f"Python {sys.version}")
+`)
+```
+</CodeGroup>
+
+## Write Binary Data
+
+<CodeGroup>
+```python Python
+# Write bytes
+binary_data = bytes([0x89, 0x50, 0x4E, 0x47])  # PNG header
+sandbox.files.write("/home/user/image.png", binary_data)
+
+# Write from local file
+with open("local_image.png", "rb") as f:
+    sandbox.files.write("/home/user/uploaded.png", f.read())
+```
+
+```javascript JavaScript
+// Write ArrayBuffer
+const binaryData = new Uint8Array([0x89, 0x50, 0x4E, 0x47])  // PNG header
+await sandbox.files.write("/home/user/image.png", binaryData)
+
+// Write Blob
+const blob = new Blob(["Hello, World!"], { type: "text/plain" })
+await sandbox.files.write("/home/user/from_blob.txt", blob)
+
+// Write from ReadableStream
+const stream = someReadableStream
+await sandbox.files.write("/home/user/from_stream.bin", stream)
+```
+</CodeGroup>
+
+## Write Multiple Files
+
+Write multiple files in a single operation:
+
+<CodeGroup>
+```python Python
+# Batch write multiple files
+files = [
+    {"path": "/home/user/file1.txt", "data": "Content 1"},
+    {"path": "/home/user/file2.txt", "data": "Content 2"},
+    {"path": "/home/user/config.json", "data": '{"key": "value"}'},
+]
+
+results = sandbox.files.write_files(files)
+for result in results:
+    print(f"Wrote {result.path}: {result.size} bytes")
+```
+
+```javascript JavaScript
+// Batch write multiple files
+const files = [
+  { path: "/home/user/file1.txt", data: "Content 1" },
+  { path: "/home/user/file2.txt", data: "Content 2" },
+  { path: "/home/user/config.json", data: '{"key": "value"}' },
+]
+
+const results = await sandbox.files.write(files)
+for (const result of results) {
+  console.log(`Wrote ${result.path}: ${result.size} bytes`)
+}
+```
+</CodeGroup>
+
+## Automatic Directory Creation
+
+Parent directories are created automatically:
+
+<CodeGroup>
+```python Python
+# This creates /home/user/deep/nested/path/ automatically
+sandbox.files.write("/home/user/deep/nested/path/file.txt", "content")
+```
+
+```javascript JavaScript
+// This creates /home/user/deep/nested/path/ automatically
+await sandbox.files.write("/home/user/deep/nested/path/file.txt", "content")
+```
+</CodeGroup>
+
+## Write Response
+
+The write operation returns information about the created file:
+
+<CodeGroup>
+```python Python
+result = sandbox.files.write("/home/user/data.txt", "Hello!")
+
+print(f"Path: {result.path}")
+print(f"Size: {result.size} bytes")
+print(f"Mode: {result.mode}")
+print(f"Permissions: {result.permissions}")
+print(f"Owner: {result.owner}")
+print(f"Group: {result.group}")
+print(f"Modified: {result.modified_time}")
+```
+
+```javascript JavaScript
+const result = await sandbox.files.write("/home/user/data.txt", "Hello!")
+
+console.log(`Path: ${result.path}`)
+console.log(`Size: ${result.size} bytes`)
+console.log(`Mode: ${result.mode}`)
+console.log(`Permissions: ${result.permissions}`)
+console.log(`Owner: ${result.owner}`)
+console.log(`Group: ${result.group}`)
+console.log(`Modified: ${result.modifiedTime}`)
+```
+</CodeGroup>
+
+## Write as Different User
+
+<CodeGroup>
+```python Python
+# Write as root
+sandbox.files.write("/etc/myconfig.conf", "config data", user="root")
+
+# Write as specific user
+sandbox.files.write("/home/alice/file.txt", "data", user="alice")
+```
+
+```javascript JavaScript
+// Write as root
+await sandbox.files.write("/etc/myconfig.conf", "config data", { user: "root" })
+
+// Write as specific user
+await sandbox.files.write("/home/alice/file.txt", "data", { user: "alice" })
+```
+</CodeGroup>
+
+## Upload URL
+
+Get a URL to upload files directly:
+
+<CodeGroup>
+```python Python
+# Get upload URL for a specific path
+url = sandbox.upload_url("/home/user/large_file.zip")
+
+# Upload using any HTTP client
+import requests
+with open("large_file.zip", "rb") as f:
+    requests.put(url, data=f)
+```
+
+```javascript JavaScript
+// Get upload URL for a specific path
+const url = await sandbox.uploadUrl("/home/user/large_file.zip")
+
+// Upload using fetch
+await fetch(url, {
+  method: "PUT",
+  body: fileContent
+})
+```
+</CodeGroup>
+
+## Error Handling
+
+<CodeGroup>
+```python Python
+from moru.exceptions import NotEnoughSpaceException
+
+try:
+    # Write a large file
+    sandbox.files.write("/home/user/huge.bin", large_data)
+except NotEnoughSpaceException:
+    print("Not enough disk space in sandbox")
+```
+
+```javascript JavaScript
+import { NotEnoughSpaceError } from '@moru-ai/core'
+
+try {
+  // Write a large file
+  await sandbox.files.write("/home/user/huge.bin", largeData)
+} catch (error) {
+  if (error instanceof NotEnoughSpaceError) {
+    console.log("Not enough disk space in sandbox")
+  }
+}
+```
+</CodeGroup>
+
+## Options Reference
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `user` | string | User context for writing |
+| `request_timeout` / `requestTimeoutMs` | number | Operation timeout |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Read Files" icon="file" href="/files/read">
+    Read file contents.
+  </Card>
+  <Card title="File Management" icon="folder-gear" href="/files/manage">
+    Rename, move, and delete files.
+  </Card>
+</CardGroup>

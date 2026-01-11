@@ -1,97 +1,110 @@
 ---
 title: "Introduction"
-description: "Welcome to the new home for your documentation"
+description: "Moru - AI Agent Runtime Infrastructure for running agents in secure, isolated sandboxes"
 ---
 
-## Setting up
+Moru provides secure sandbox infrastructure for running AI agents. Each sandbox is a hardware-isolated microVM with full filesystem access, command execution, and real-time streaming capabilities.
 
-Get your documentation site up and running in minutes.
+## Why Moru?
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Hardware Isolation" icon="shield-halved">
+    Each sandbox runs in its own Firecracker microVM, providing strong security isolation between workloads.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Full Environment" icon="terminal">
+    Complete Linux environment with filesystem, networking, and command execution - everything your agent needs.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Real-time Streaming" icon="bolt">
+    Stream command output, file changes, and logs in real-time as your agent works.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Session Persistence" icon="floppy-disk">
+    Pause and resume sandboxes to maintain agent state across sessions.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Quick Example
 
-Everything you need to create world-class documentation.
+Create a sandbox, run a command, and read the output:
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+<CodeGroup>
+```python Python
+from moru import Sandbox
 
-## Need inspiration?
+# Create a sandbox
+sandbox = Sandbox.create()
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
+# Run a command
+result = sandbox.commands.run("echo 'Hello from Moru!'")
+print(result.stdout)  # Hello from Moru!
+
+# Clean up
+sandbox.kill()
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+// Create a sandbox
+const sandbox = await Sandbox.create()
+
+// Run a command
+const result = await sandbox.commands.run("echo 'Hello from Moru!'")
+console.log(result.stdout)  // Hello from Moru!
+
+// Clean up
+await sandbox.kill()
+```
+</CodeGroup>
+
+## Core Concepts
+
+### Sandboxes
+
+A sandbox is an isolated compute environment where your agent can safely execute code, manipulate files, and run commands. Each sandbox:
+
+- Runs in a dedicated Firecracker microVM
+- Has its own filesystem (10 GB default)
+- Can execute arbitrary shell commands
+- Supports network access (configurable)
+- Auto-terminates after a timeout (default 5 minutes)
+
+### Templates
+
+Templates define the starting state of a sandbox - the base image, installed packages, and startup configuration. Use built-in templates or create custom ones with your specific dependencies.
+
+### Files and Commands
+
+Sandboxes provide full access to:
+- **Filesystem operations**: Read, write, list, watch files and directories
+- **Command execution**: Run shell commands with streaming output
+- **PTY support**: Interactive terminal sessions for REPL environments
+
+## Get Started
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Create your first sandbox in 5 minutes.
+  </Card>
+  <Card title="Sandbox Overview" icon="cube" href="/sandbox/overview">
+    Learn how sandboxes work and their lifecycle.
+  </Card>
+  <Card title="Python SDK" icon="python" href="/sdk/python">
+    Complete Python SDK reference.
+  </Card>
+  <Card title="JavaScript SDK" icon="js" href="/sdk/javascript">
+    Complete JavaScript/TypeScript SDK reference.
+  </Card>
+</CardGroup>
+
+## Use Cases
+
+Moru is designed for AI agent workloads:
+
+- **Code execution agents**: Run code generated by LLMs in isolated environments
+- **Development assistants**: Provide agents with full development environments
+- **Data processing**: Execute data transformation pipelines securely
+- **Testing and CI**: Run tests in clean, reproducible environments
+
+<Card title="Claude Agent SDK Integration" icon="robot" href="/guides/claude-agent-sdk/overview">
+  Learn how to run Claude Agent SDK in Moru sandboxes with session persistence and tool execution.
 </Card>

@@ -1,0 +1,269 @@
+---
+title: "Container Registries"
+description: "Using private container registries with Moru templates"
+---
+
+Build templates from images in private container registries like AWS ECR, Google Artifact Registry, or any Docker-compatible registry.
+
+## AWS ECR
+
+<CodeGroup>
+```python Python
+from moru import Template
+
+template = Template().from_aws_registry(
+    "123456789.dkr.ecr.us-east-1.amazonaws.com/my-image:latest",
+    access_key_id="AKIA...",
+    secret_access_key="...",
+    region="us-east-1"
+)
+
+info = Template.build(template, alias="my-ecr-app")
+```
+
+```javascript JavaScript
+import { Template } from '@moru-ai/core'
+
+const template = Template().fromAWSRegistry(
+  "123456789.dkr.ecr.us-east-1.amazonaws.com/my-image:latest",
+  {
+    accessKeyId: "AKIA...",
+    secretAccessKey: "...",
+    region: "us-east-1"
+  }
+)
+
+const info = await Template.build(template, { alias: "my-ecr-app" })
+```
+</CodeGroup>
+
+## Google Artifact Registry
+
+<CodeGroup>
+```python Python
+from moru import Template
+import json
+
+# Load service account JSON
+with open("service-account.json") as f:
+    sa_json = json.load(f)
+
+template = Template().from_gcp_registry(
+    "us-central1-docker.pkg.dev/my-project/my-repo/my-image:latest",
+    service_account_json=sa_json
+)
+
+info = Template.build(template, alias="my-gar-app")
+```
+
+```javascript JavaScript
+import { Template } from '@moru-ai/core'
+import fs from 'fs'
+
+// Load service account JSON
+const saJson = JSON.parse(fs.readFileSync("service-account.json", "utf-8"))
+
+const template = Template().fromGCPRegistry(
+  "us-central1-docker.pkg.dev/my-project/my-repo/my-image:latest",
+  { serviceAccountJSON: saJson }
+)
+
+const info = await Template.build(template, { alias: "my-gar-app" })
+```
+</CodeGroup>
+
+## Generic Registry
+
+For any Docker-compatible registry:
+
+<CodeGroup>
+```python Python
+from moru import Template
+
+template = Template().from_image(
+    "registry.example.com/my-image:latest",
+    username="myuser",
+    password="mypassword"
+)
+
+info = Template.build(template, alias="my-private-app")
+```
+
+```javascript JavaScript
+import { Template } from '@moru-ai/core'
+
+const template = Template().fromImage(
+  "registry.example.com/my-image:latest",
+  {
+    username: "myuser",
+    password: "mypassword"
+  }
+)
+
+const info = await Template.build(template, { alias: "my-private-app" })
+```
+</CodeGroup>
+
+## Docker Hub Private Images
+
+<CodeGroup>
+```python Python
+from moru import Template
+
+template = Template().from_image(
+    "myorg/private-image:latest",
+    username="dockerhub_username",
+    password="dockerhub_token"  # Use access token, not password
+)
+
+info = Template.build(template, alias="my-dockerhub-app")
+```
+
+```javascript JavaScript
+import { Template } from '@moru-ai/core'
+
+const template = Template().fromImage(
+  "myorg/private-image:latest",
+  {
+    username: "dockerhub_username",
+    password: "dockerhub_token"  // Use access token, not password
+  }
+)
+
+const info = await Template.build(template, { alias: "my-dockerhub-app" })
+```
+</CodeGroup>
+
+## GitHub Container Registry
+
+<CodeGroup>
+```python Python
+from moru import Template
+
+template = Template().from_image(
+    "ghcr.io/myorg/my-image:latest",
+    username="github_username",
+    password="ghp_..."  # GitHub PAT with read:packages scope
+)
+
+info = Template.build(template, alias="my-ghcr-app")
+```
+
+```javascript JavaScript
+import { Template } from '@moru-ai/core'
+
+const template = Template().fromImage(
+  "ghcr.io/myorg/my-image:latest",
+  {
+    username: "github_username",
+    password: "ghp_..."  // GitHub PAT with read:packages scope
+  }
+)
+
+const info = await Template.build(template, { alias: "my-ghcr-app" })
+```
+</CodeGroup>
+
+## Azure Container Registry
+
+<CodeGroup>
+```python Python
+from moru import Template
+
+template = Template().from_image(
+    "myregistry.azurecr.io/my-image:latest",
+    username="service_principal_id",
+    password="service_principal_password"
+)
+
+info = Template.build(template, alias="my-acr-app")
+```
+
+```javascript JavaScript
+import { Template } from '@moru-ai/core'
+
+const template = Template().fromImage(
+  "myregistry.azurecr.io/my-image:latest",
+  {
+    username: "service_principal_id",
+    password: "service_principal_password"
+  }
+)
+
+const info = await Template.build(template, { alias: "my-acr-app" })
+```
+</CodeGroup>
+
+## Extending Registry Images
+
+After pulling from a registry, you can extend the image:
+
+<CodeGroup>
+```python Python
+from moru import Template
+
+template = (
+    Template()
+    .from_image("myorg/base-image:latest", username="...", password="...")
+    .pip_install(["additional-package"])
+    .set_envs({"ENVIRONMENT": "production"})
+    .set_start_cmd("python app.py", "curl localhost:8080/health")
+)
+
+info = Template.build(template, alias="my-extended-app")
+```
+
+```javascript JavaScript
+import { Template } from '@moru-ai/core'
+
+const template = Template()
+  .fromImage("myorg/base-image:latest", { username: "...", password: "..." })
+  .pipInstall(["additional-package"])
+  .setEnvs({ ENVIRONMENT: "production" })
+  .setStartCmd("python app.py", "curl localhost:8080/health")
+
+const info = await Template.build(template, { alias: "my-extended-app" })
+```
+</CodeGroup>
+
+## Security Best Practices
+
+<Warning>
+  Never commit credentials to source control. Use environment variables or secret management.
+</Warning>
+
+<CodeGroup>
+```python Python
+import os
+from moru import Template
+
+template = Template().from_image(
+    os.environ["REGISTRY_IMAGE"],
+    username=os.environ["REGISTRY_USERNAME"],
+    password=os.environ["REGISTRY_PASSWORD"]
+)
+```
+
+```javascript JavaScript
+import { Template } from '@moru-ai/core'
+
+const template = Template().fromImage(
+  process.env.REGISTRY_IMAGE,
+  {
+    username: process.env.REGISTRY_USERNAME,
+    password: process.env.REGISTRY_PASSWORD
+  }
+)
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Dashboard" icon="gauge" href="/templates/dashboard">
+    Manage templates in the dashboard.
+  </Card>
+  <Card title="Build Templates" icon="hammer" href="/templates/build">
+    Use the full builder API.
+  </Card>
+</CardGroup>

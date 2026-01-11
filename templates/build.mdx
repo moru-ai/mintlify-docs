@@ -1,0 +1,495 @@
+---
+title: "Build Templates"
+description: "Creating custom templates with the Template Builder API"
+---
+
+The Template Builder provides a fluent API for defining custom templates with specific dependencies, files, and configuration.
+
+## Basic Structure
+
+<CodeGroup>
+```python Python
+from moru import Template
+
+template = (
+    Template()
+    .from_python_image("3.11")           # Base image
+    .pip_install(["requests", "flask"])  # Install packages
+    .copy("./app", "/app")               # Copy files
+    .set_workdir("/app")                 # Set working directory
+    .set_start_cmd("python app.py")      # Startup command
+)
+
+# Build the template
+info = Template.build(template, alias="my-flask-app")
+```
+
+```javascript JavaScript
+import { Template } from '@moru-ai/core'
+
+const template = Template()
+  .fromPythonImage("3.11")              // Base image
+  .pipInstall(["requests", "flask"])    // Install packages
+  .copy("./app", "/app")                // Copy files
+  .setWorkdir("/app")                   // Set working directory
+  .setStartCmd("python app.py")         // Startup command
+
+// Build the template
+const info = await Template.build(template, { alias: "my-flask-app" })
+```
+</CodeGroup>
+
+## Base Images
+
+### Official Language Images
+
+<CodeGroup>
+```python Python
+# Python
+Template().from_python_image("3.11")
+Template().from_python_image("3.10")
+Template().from_python_image()  # Default: Python 3
+
+# Node.js
+Template().from_node_image("lts")
+Template().from_node_image("20")
+Template().from_node_image()  # Default: LTS
+
+# Bun
+Template().from_bun_image("latest")
+Template().from_bun_image("1.0")
+```
+
+```javascript JavaScript
+// Python
+Template().fromPythonImage("3.11")
+Template().fromPythonImage("3.10")
+Template().fromPythonImage()  // Default: Python 3
+
+// Node.js
+Template().fromNodeImage("lts")
+Template().fromNodeImage("20")
+Template().fromNodeImage()  // Default: LTS
+
+// Bun
+Template().fromBunImage("latest")
+Template().fromBunImage("1.0")
+```
+</CodeGroup>
+
+### OS Images
+
+<CodeGroup>
+```python Python
+Template().from_ubuntu_image("22.04")
+Template().from_debian_image("bookworm")
+Template().from_base_image()  # Moru's optimized base
+```
+
+```javascript JavaScript
+Template().fromUbuntuImage("22.04")
+Template().fromDebianImage("bookworm")
+Template().fromBaseImage()  // Moru's optimized base
+```
+</CodeGroup>
+
+### Custom Images
+
+<CodeGroup>
+```python Python
+# Public Docker Hub image
+Template().from_image("nginx:alpine")
+
+# Private image with credentials
+Template().from_image(
+    "myregistry.com/myimage:tag",
+    username="user",
+    password="pass"
+)
+
+# Existing Moru template
+Template().from_template("my-base-template")
+```
+
+```javascript JavaScript
+// Public Docker Hub image
+Template().fromImage("nginx:alpine")
+
+// Private image with credentials
+Template().fromImage(
+  "myregistry.com/myimage:tag",
+  { username: "user", password: "pass" }
+)
+
+// Existing Moru template
+Template().fromTemplate("my-base-template")
+```
+</CodeGroup>
+
+## Package Installation
+
+### Python (pip)
+
+<CodeGroup>
+```python Python
+Template().pip_install(["numpy", "pandas", "scikit-learn"])
+Template().pip_install("requests")  # Single package
+Template().pip_install(["mypackage"], g=True)  # Global install
+```
+
+```javascript JavaScript
+Template().pipInstall(["numpy", "pandas", "scikit-learn"])
+Template().pipInstall("requests")  // Single package
+Template().pipInstall(["mypackage"], { g: true })  // Global install
+```
+</CodeGroup>
+
+### Node.js (npm)
+
+<CodeGroup>
+```python Python
+Template().npm_install(["express", "typescript"])
+Template().npm_install(["eslint"], g=True)  # Global install
+Template().npm_install(["jest"], dev=True)  # Dev dependency
+```
+
+```javascript JavaScript
+Template().npmInstall(["express", "typescript"])
+Template().npmInstall(["eslint"], { g: true })  // Global install
+Template().npmInstall(["jest"], { dev: true })  // Dev dependency
+```
+</CodeGroup>
+
+### Bun
+
+<CodeGroup>
+```python Python
+Template().bun_install(["hono", "drizzle-orm"])
+Template().bun_install(["typescript"], g=True)
+```
+
+```javascript JavaScript
+Template().bunInstall(["hono", "drizzle-orm"])
+Template().bunInstall(["typescript"], { g: true })
+```
+</CodeGroup>
+
+### System (apt)
+
+<CodeGroup>
+```python Python
+Template().apt_install(["curl", "git", "build-essential"])
+Template().apt_install(["chromium"], no_install_recommends=True)
+```
+
+```javascript JavaScript
+Template().aptInstall(["curl", "git", "build-essential"])
+Template().aptInstall(["chromium"], { noInstallRecommends: true })
+```
+</CodeGroup>
+
+## File Operations
+
+### Copy Files
+
+<CodeGroup>
+```python Python
+# Single file
+Template().copy("./config.json", "/app/config.json")
+
+# Directory
+Template().copy("./src", "/app/src")
+
+# Multiple sources
+Template().copy(["./src", "./lib"], "/app")
+
+# With options
+Template().copy(
+    "./scripts",
+    "/app/scripts",
+    user="root",
+    mode=0o755
+)
+```
+
+```javascript JavaScript
+// Single file
+Template().copy("./config.json", "/app/config.json")
+
+// Directory
+Template().copy("./src", "/app/src")
+
+// Multiple sources
+Template().copy(["./src", "./lib"], "/app")
+
+// With options
+Template().copy(
+  "./scripts",
+  "/app/scripts",
+  { user: "root", mode: 0o755 }
+)
+```
+</CodeGroup>
+
+### Create Directories
+
+<CodeGroup>
+```python Python
+Template().make_dir("/app/data")
+Template().make_dir("/app/logs", mode=0o755)
+```
+
+```javascript JavaScript
+Template().makeDir("/app/data")
+Template().makeDir("/app/logs", { mode: 0o755 })
+```
+</CodeGroup>
+
+## Commands
+
+<CodeGroup>
+```python Python
+# Run a command during build
+Template().run_cmd("echo 'Building...'")
+
+# Multiple commands
+Template().run_cmd(["apt-get update", "apt-get upgrade -y"])
+
+# As specific user
+Template().run_cmd("npm install", user="node")
+```
+
+```javascript JavaScript
+// Run a command during build
+Template().runCmd("echo 'Building...'")
+
+// Multiple commands
+Template().runCmd(["apt-get update", "apt-get upgrade -y"])
+
+// As specific user
+Template().runCmd("npm install", { user: "node" })
+```
+</CodeGroup>
+
+## Configuration
+
+### Environment Variables
+
+<CodeGroup>
+```python Python
+Template().set_envs({
+    "NODE_ENV": "production",
+    "PORT": "3000",
+    "DATABASE_URL": "postgres://..."
+})
+```
+
+```javascript JavaScript
+Template().setEnvs({
+  NODE_ENV: "production",
+  PORT: "3000",
+  DATABASE_URL: "postgres://..."
+})
+```
+</CodeGroup>
+
+### Working Directory
+
+<CodeGroup>
+```python Python
+Template().set_workdir("/app")
+```
+
+```javascript JavaScript
+Template().setWorkdir("/app")
+```
+</CodeGroup>
+
+### Default User
+
+<CodeGroup>
+```python Python
+Template().set_user("node")
+```
+
+```javascript JavaScript
+Template().setUser("node")
+```
+</CodeGroup>
+
+## Startup Commands
+
+### Start Command
+
+<CodeGroup>
+```python Python
+# Simple start command
+Template().set_start_cmd("node server.js")
+
+# With ready command (waits for this to succeed)
+Template().set_start_cmd(
+    "node server.js",
+    "curl -s localhost:3000/health"
+)
+```
+
+```javascript JavaScript
+// Simple start command
+Template().setStartCmd("node server.js")
+
+// With ready command (waits for this to succeed)
+Template().setStartCmd(
+  "node server.js",
+  "curl -s localhost:3000/health"
+)
+```
+</CodeGroup>
+
+### Ready Commands
+
+Use helper functions for common readiness checks:
+
+<CodeGroup>
+```python Python
+from moru.template import wait_for_port, wait_for_url
+
+# Wait for port
+Template().set_start_cmd(
+    "python server.py",
+    wait_for_port(8080)
+)
+
+# Wait for URL
+Template().set_start_cmd(
+    "npm start",
+    wait_for_url("http://localhost:3000/health")
+)
+```
+
+```javascript JavaScript
+import { waitForPort, waitForURL } from '@moru-ai/core'
+
+// Wait for port
+Template().setStartCmd(
+  "python server.py",
+  waitForPort(8080)
+)
+
+// Wait for URL
+Template().setStartCmd(
+  "npm start",
+  waitForURL("http://localhost:3000/health")
+)
+```
+</CodeGroup>
+
+## Building Templates
+
+### Synchronous Build
+
+<CodeGroup>
+```python Python
+from moru import Template
+
+template = Template().from_python_image().pip_install(["flask"])
+
+# Build and wait for completion
+info = Template.build(
+    template,
+    alias="my-template",
+    cpu_count=2,
+    memory_mb=1024
+)
+
+print(f"Template ID: {info.template_id}")
+print(f"Build ID: {info.build_id}")
+```
+
+```javascript JavaScript
+import { Template } from '@moru-ai/core'
+
+const template = Template().fromPythonImage().pipInstall(["flask"])
+
+// Build and wait for completion
+const info = await Template.build(template, {
+  alias: "my-template",
+  cpuCount: 2,
+  memoryMB: 1024
+})
+
+console.log(`Template ID: ${info.templateId}`)
+console.log(`Build ID: ${info.buildId}`)
+```
+</CodeGroup>
+
+### Background Build
+
+<CodeGroup>
+```python Python
+# Start build in background
+info = Template.build_in_background(
+    template,
+    alias="my-template"
+)
+
+# Check status later
+status = Template.get_build_status(info)
+print(f"Status: {status.status}")  # building, success, failed
+```
+
+```javascript JavaScript
+// Start build in background
+const info = await Template.buildInBackground(template, {
+  alias: "my-template"
+})
+
+// Check status later
+const status = await Template.getBuildStatus(info)
+console.log(`Status: ${status.status}`)  // building, success, failed
+```
+</CodeGroup>
+
+### Build Logs
+
+<CodeGroup>
+```python Python
+def log_handler(entry):
+    print(f"[{entry.level}] {entry.message}")
+
+Template.build(
+    template,
+    alias="my-template",
+    on_build_logs=log_handler
+)
+```
+
+```javascript JavaScript
+await Template.build(template, {
+  alias: "my-template",
+  onBuildLogs: (entry) => {
+    console.log(`[${entry.level}] ${entry.message}`)
+  }
+})
+```
+</CodeGroup>
+
+## Build Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `alias` | string | required | Template name |
+| `cpu_count` / `cpuCount` | number | 2 | Build CPU cores |
+| `memory_mb` / `memoryMB` | number | 1024 | Build memory (MB) |
+| `skip_cache` / `skipCache` | boolean | false | Skip build cache |
+| `on_build_logs` / `onBuildLogs` | function | - | Log callback |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Dockerfile Support" icon="docker" href="/templates/dockerfile">
+    Build from existing Dockerfiles.
+  </Card>
+  <Card title="Container Registries" icon="database" href="/templates/registries">
+    Use private registries.
+  </Card>
+</CardGroup>

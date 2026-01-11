@@ -1,0 +1,294 @@
+---
+title: "Watch Files"
+description: "Monitoring file and directory changes in real-time"
+---
+
+Use `sandbox.files.watch_dir()` to receive real-time notifications when files are created, modified, or deleted.
+
+## Basic Usage
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+
+# Start watching a directory
+handle = sandbox.files.watch_dir("/home/user/watched")
+
+# Process events
+for event in handle.events():
+    print(f"Event: {event.type} - {event.name}")
+
+# In another thread/process, make changes
+# sandbox.files.write("/home/user/watched/new.txt", "Hello")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+// Start watching a directory
+const handle = await sandbox.files.watchDir("/home/user/watched", (event) => {
+  console.log(`Event: ${event.type} - ${event.name}`)
+})
+
+// Make changes to trigger events
+await sandbox.files.write("/home/user/watched/new.txt", "Hello")
+
+// Later, stop watching
+await handle.stop()
+```
+</CodeGroup>
+
+## Event Types
+
+| Event Type | Description |
+|------------|-------------|
+| `CREATE` | File or directory was created |
+| `WRITE` / `MODIFY` | File was modified |
+| `REMOVE` / `DELETE` | File or directory was deleted |
+| `RENAME` | File or directory was renamed |
+| `CHMOD` | Permissions were changed |
+
+## Event Information
+
+Each event contains:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | string | Relative path from watched directory |
+| `type` | string | Event type (CREATE, WRITE, REMOVE, etc.) |
+
+<CodeGroup>
+```python Python
+for event in handle.events():
+    if event.type == "CREATE":
+        print(f"New file: {event.name}")
+    elif event.type == "WRITE":
+        print(f"Modified: {event.name}")
+    elif event.type == "REMOVE":
+        print(f"Deleted: {event.name}")
+```
+
+```javascript JavaScript
+const handle = await sandbox.files.watchDir("/home/user/watched", (event) => {
+  switch (event.type) {
+    case "create":
+      console.log(`New file: ${event.name}`)
+      break
+    case "write":
+      console.log(`Modified: ${event.name}`)
+      break
+    case "remove":
+      console.log(`Deleted: ${event.name}`)
+      break
+  }
+})
+```
+</CodeGroup>
+
+## Recursive Watching
+
+Watch a directory and all its subdirectories:
+
+<CodeGroup>
+```python Python
+# Watch recursively
+handle = sandbox.files.watch_dir("/home/user/project", recursive=True)
+
+for event in handle.events():
+    print(f"{event.type}: {event.name}")
+```
+
+```javascript JavaScript
+// Watch recursively
+const handle = await sandbox.files.watchDir(
+  "/home/user/project",
+  (event) => console.log(`${event.type}: ${event.name}`),
+  { recursive: true }
+)
+```
+</CodeGroup>
+
+## Stop Watching
+
+<CodeGroup>
+```python Python
+handle = sandbox.files.watch_dir("/home/user/watched")
+
+# Stop watching after some condition
+for event in handle.events():
+    print(event.name)
+    if event.name == "done.txt":
+        handle.stop()
+        break
+```
+
+```javascript JavaScript
+const handle = await sandbox.files.watchDir("/home/user/watched", async (event) => {
+  console.log(event.name)
+  if (event.name === "done.txt") {
+    await handle.stop()
+  }
+})
+```
+</CodeGroup>
+
+## Live Reload Example
+
+Watch for file changes and reload an application:
+
+<CodeGroup>
+```python Python
+import threading
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+
+# Start a web server in background
+sandbox.commands.run("python3 -m http.server 8080", background=True)
+
+def watch_and_reload():
+    handle = sandbox.files.watch_dir("/home/user/app", recursive=True)
+    for event in handle.events():
+        if event.name.endswith(".py"):
+            print(f"Reloading due to: {event.name}")
+            sandbox.commands.run("pkill -HUP python3")
+
+thread = threading.Thread(target=watch_and_reload, daemon=True)
+thread.start()
+
+# Make changes and see reloads
+sandbox.files.write("/home/user/app/main.py", "print('updated')")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+// Start a web server in background
+await sandbox.commands.run("python3 -m http.server 8080", { background: true })
+
+// Watch for changes
+const handle = await sandbox.files.watchDir(
+  "/home/user/app",
+  async (event) => {
+    if (event.name.endsWith(".py")) {
+      console.log(`Reloading due to: ${event.name}`)
+      await sandbox.commands.run("pkill -HUP python3")
+    }
+  },
+  { recursive: true }
+)
+
+// Make changes and see reloads
+await sandbox.files.write("/home/user/app/main.py", "print('updated')")
+```
+</CodeGroup>
+
+## File Sync Example
+
+Sync files from sandbox to local machine:
+
+<CodeGroup>
+```python Python
+import os
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+local_dir = "./synced_files"
+os.makedirs(local_dir, exist_ok=True)
+
+def sync_handler():
+    handle = sandbox.files.watch_dir("/home/user/output", recursive=True)
+    for event in handle.events():
+        if event.type == "CREATE" or event.type == "WRITE":
+            # Download the file
+            remote_path = f"/home/user/output/{event.name}"
+            local_path = os.path.join(local_dir, event.name)
+
+            content = sandbox.files.read(remote_path, format="bytes")
+
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(content)
+
+            print(f"Synced: {event.name}")
+
+# Run sync in background thread
+import threading
+thread = threading.Thread(target=sync_handler, daemon=True)
+thread.start()
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+import fs from 'fs'
+import path from 'path'
+
+const sandbox = await Sandbox.create()
+const localDir = "./synced_files"
+fs.mkdirSync(localDir, { recursive: true })
+
+const handle = await sandbox.files.watchDir(
+  "/home/user/output",
+  async (event) => {
+    if (event.type === "create" || event.type === "write") {
+      // Download the file
+      const remotePath = `/home/user/output/${event.name}`
+      const localPath = path.join(localDir, event.name)
+
+      const content = await sandbox.files.read(remotePath, { format: "bytes" })
+
+      fs.mkdirSync(path.dirname(localPath), { recursive: true })
+      fs.writeFileSync(localPath, Buffer.from(content))
+
+      console.log(`Synced: ${event.name}`)
+    }
+  },
+  { recursive: true }
+)
+```
+</CodeGroup>
+
+## User Context
+
+Watch directories as a specific user:
+
+<CodeGroup>
+```python Python
+# Watch as root to see all changes
+handle = sandbox.files.watch_dir("/etc", user="root")
+```
+
+```javascript JavaScript
+// Watch as root to see all changes
+const handle = await sandbox.files.watchDir(
+  "/etc",
+  (event) => console.log(event),
+  { user: "root" }
+)
+```
+</CodeGroup>
+
+## Options Reference
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `recursive` | boolean | `false` | Watch subdirectories |
+| `user` | string | `"user"` | User context |
+| `request_timeout` / `requestTimeoutMs` | number | - | Operation timeout |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Commands Overview" icon="terminal" href="/commands/overview">
+    Execute commands in the sandbox.
+  </Card>
+  <Card title="Background Commands" icon="spinner" href="/commands/background">
+    Run long-running processes.
+  </Card>
+</CardGroup>

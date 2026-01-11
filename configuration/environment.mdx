@@ -1,0 +1,235 @@
+---
+title: "Environment Variables"
+description: "Configuring Moru SDKs and CLI via environment variables"
+---
+
+Configure the Moru SDK and CLI using environment variables.
+
+## SDK Configuration
+
+### MORU_API_KEY
+
+Your Moru API key for authentication.
+
+```bash
+export MORU_API_KEY=moru_abc123...
+```
+
+Get your API key from the [dashboard](https://moru.io/dashboard/settings).
+
+<CodeGroup>
+```python Python
+# Automatically used
+from moru import Sandbox
+sandbox = Sandbox.create()
+
+# Or override
+sandbox = Sandbox.create(api_key="different_key")
+```
+
+```javascript JavaScript
+// Automatically used
+import Sandbox from '@moru-ai/core'
+const sandbox = await Sandbox.create()
+
+// Or override
+const sandbox = await Sandbox.create({ apiKey: 'different_key' })
+```
+</CodeGroup>
+
+### MORU_ACCESS_TOKEN
+
+Access token for CLI authentication (typically set by `moru auth login`).
+
+```bash
+export MORU_ACCESS_TOKEN=eyJ...
+```
+
+### MORU_DOMAIN
+
+API domain (default: `moru.io`).
+
+```bash
+export MORU_DOMAIN=moru.io
+```
+
+### MORU_DEBUG
+
+Enable debug logging.
+
+```bash
+export MORU_DEBUG=true
+```
+
+### MORU_API_URL
+
+Full API URL (advanced usage).
+
+```bash
+export MORU_API_URL=https://api.moru.io
+```
+
+## Sandbox Environment Variables
+
+Set environment variables inside sandboxes:
+
+<CodeGroup>
+```python Python
+sandbox = Sandbox.create(
+    envs={
+        "API_KEY": "secret",
+        "NODE_ENV": "production",
+        "DATABASE_URL": "postgres://..."
+    }
+)
+
+# Access in commands
+result = sandbox.commands.run("echo $API_KEY")
+```
+
+```javascript JavaScript
+const sandbox = await Sandbox.create({
+  envs: {
+    API_KEY: 'secret',
+    NODE_ENV: 'production',
+    DATABASE_URL: 'postgres://...'
+  }
+})
+
+// Access in commands
+const result = await sandbox.commands.run('echo $API_KEY')
+```
+</CodeGroup>
+
+## Per-Command Environment Variables
+
+Set environment variables for specific commands:
+
+<CodeGroup>
+```python Python
+result = sandbox.commands.run(
+    "python script.py",
+    envs={
+        "DEBUG": "true",
+        "LOG_LEVEL": "debug"
+    }
+)
+```
+
+```javascript JavaScript
+const result = await sandbox.commands.run(
+  'python script.py',
+  {
+    envs: {
+      DEBUG: 'true',
+      LOG_LEVEL: 'debug'
+    }
+  }
+)
+```
+</CodeGroup>
+
+## Template Environment Variables
+
+Set default environment variables in templates:
+
+<CodeGroup>
+```python Python
+template = (
+    Template()
+    .from_python_image()
+    .set_envs({
+        "PYTHONUNBUFFERED": "1",
+        "NODE_ENV": "production"
+    })
+)
+```
+
+```javascript JavaScript
+const template = Template()
+  .fromPythonImage()
+  .setEnvs({
+    PYTHONUNBUFFERED: '1',
+    NODE_ENV: 'production'
+  })
+```
+</CodeGroup>
+
+## Priority Order
+
+Environment variables are resolved in this order (highest priority first):
+
+1. Per-command `envs` option
+2. Sandbox creation `envs` option
+3. Template default environment variables
+4. System environment variables in the base image
+
+## CI/CD Examples
+
+### GitHub Actions
+
+```yaml
+name: Build and Test
+on: push
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      MORU_API_KEY: ${{ secrets.MORU_API_KEY }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run tests in sandbox
+        run: |
+          pip install moru
+          python test_in_sandbox.py
+```
+
+### GitLab CI
+
+```yaml
+test:
+  variables:
+    MORU_API_KEY: $MORU_API_KEY
+  script:
+    - pip install moru
+    - python test_in_sandbox.py
+```
+
+### CircleCI
+
+```yaml
+version: 2.1
+jobs:
+  test:
+    docker:
+      - image: python:3.11
+    environment:
+      MORU_API_KEY: ${MORU_API_KEY}
+    steps:
+      - checkout
+      - run: pip install moru
+      - run: python test_in_sandbox.py
+```
+
+## Security Best Practices
+
+<Warning>
+  Never commit API keys to source control.
+</Warning>
+
+1. **Use environment variables** for API keys
+2. **Use secrets management** in CI/CD
+3. **Rotate keys** regularly
+4. **Use minimal permissions** - create keys with only needed access
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get started with Moru.
+  </Card>
+  <Card title="Error Reference" icon="triangle-exclamation" href="/errors">
+    Handle errors properly.
+  </Card>
+</CardGroup>

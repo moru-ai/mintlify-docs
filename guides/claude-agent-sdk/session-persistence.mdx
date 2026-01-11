@@ -1,0 +1,374 @@
+---
+title: "Session Persistence"
+description: "Persisting and resuming Claude Agent SDK sessions"
+---
+
+Claude Agent SDK stores session state in files, allowing you to persist and resume conversations across sandbox restarts.
+
+## Session Storage Location
+
+Claude Agent SDK stores sessions in:
+
+```
+~/.claude/projects/{project-hash}/{session-id}.jsonl
+```
+
+Where:
+- `{project-hash}` - Hash of the project directory
+- `{session-id}` - Unique session identifier
+
+## Extracting Sessions
+
+### Save Session State
+
+<CodeGroup>
+```python Python
+import json
+from moru import Sandbox
+
+sandbox = Sandbox.create("claude-code")
+
+# Run some tasks to create session
+sandbox.commands.run("claude -p 'Create a hello world script'")
+
+# Find and read the session file
+result = sandbox.commands.run("find ~/.claude -name '*.jsonl' -type f")
+session_files = result.stdout.strip().split("\n")
+
+sessions = {}
+for path in session_files:
+    if path:
+        content = sandbox.files.read(path)
+        sessions[path] = content
+
+# Save locally
+with open("session_backup.json", "w") as f:
+    json.dump(sessions, f)
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+import fs from 'fs'
+
+const sandbox = await Sandbox.create("claude-code")
+
+// Run some tasks to create session
+await sandbox.commands.run("claude -p 'Create a hello world script'")
+
+// Find and read the session file
+const result = await sandbox.commands.run("find ~/.claude -name '*.jsonl' -type f")
+const sessionFiles = result.stdout.trim().split("\n")
+
+const sessions = {}
+for (const path of sessionFiles) {
+  if (path) {
+    const content = await sandbox.files.read(path)
+    sessions[path] = content
+  }
+}
+
+// Save locally
+fs.writeFileSync("session_backup.json", JSON.stringify(sessions))
+```
+</CodeGroup>
+
+### Restore Session State
+
+<CodeGroup>
+```python Python
+import json
+from moru import Sandbox
+
+# Load saved sessions
+with open("session_backup.json") as f:
+    sessions = json.load(f)
+
+# Create new sandbox
+sandbox = Sandbox.create("claude-code")
+
+# Restore session files
+for path, content in sessions.items():
+    # Ensure directory exists
+    dir_path = "/".join(path.split("/")[:-1])
+    sandbox.files.make_dir(dir_path)
+    sandbox.files.write(path, content)
+
+# Resume the session
+sandbox.commands.run("claude --resume")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+import fs from 'fs'
+
+// Load saved sessions
+const sessions = JSON.parse(fs.readFileSync("session_backup.json", "utf-8"))
+
+// Create new sandbox
+const sandbox = await Sandbox.create("claude-code")
+
+// Restore session files
+for (const [path, content] of Object.entries(sessions)) {
+  // Ensure directory exists
+  const dirPath = path.split("/").slice(0, -1).join("/")
+  await sandbox.files.makeDir(dirPath)
+  await sandbox.files.write(path, content)
+}
+
+// Resume the session
+await sandbox.commands.run("claude --resume")
+```
+</CodeGroup>
+
+## Workspace Persistence
+
+### Save Entire Workspace
+
+<CodeGroup>
+```python Python
+import tarfile
+import io
+from moru import Sandbox
+
+sandbox = Sandbox.create("claude-code")
+
+# Work with Claude...
+sandbox.commands.run("claude -p 'Create a Python project'")
+
+# Create tar archive of workspace
+result = sandbox.commands.run(
+    "tar -czf /tmp/workspace.tar.gz -C /home/user .",
+    timeout=60
+)
+
+# Download the archive
+archive_data = sandbox.files.read("/tmp/workspace.tar.gz", format="bytes")
+with open("workspace_backup.tar.gz", "wb") as f:
+    f.write(archive_data)
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+import fs from 'fs'
+
+const sandbox = await Sandbox.create("claude-code")
+
+// Work with Claude...
+await sandbox.commands.run("claude -p 'Create a Python project'")
+
+// Create tar archive of workspace
+await sandbox.commands.run(
+  "tar -czf /tmp/workspace.tar.gz -C /home/user .",
+  { timeoutMs: 60000 }
+)
+
+// Download the archive
+const archiveData = await sandbox.files.read("/tmp/workspace.tar.gz", { format: "bytes" })
+fs.writeFileSync("workspace_backup.tar.gz", Buffer.from(archiveData))
+```
+</CodeGroup>
+
+### Restore Workspace
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create("claude-code")
+
+# Upload the archive
+with open("workspace_backup.tar.gz", "rb") as f:
+    archive_data = f.read()
+sandbox.files.write("/tmp/workspace.tar.gz", archive_data)
+
+# Extract to home directory
+sandbox.commands.run("tar -xzf /tmp/workspace.tar.gz -C /home/user")
+
+# Continue working
+sandbox.commands.run("claude --resume")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+import fs from 'fs'
+
+const sandbox = await Sandbox.create("claude-code")
+
+// Upload the archive
+const archiveData = fs.readFileSync("workspace_backup.tar.gz")
+await sandbox.files.write("/tmp/workspace.tar.gz", archiveData)
+
+// Extract to home directory
+await sandbox.commands.run("tar -xzf /tmp/workspace.tar.gz -C /home/user")
+
+// Continue working
+await sandbox.commands.run("claude --resume")
+```
+</CodeGroup>
+
+## Pause and Resume with Moru
+
+Using Moru's beta pause feature:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+# Create and work
+sandbox = Sandbox.create("claude-code")
+sandbox.commands.run("claude -p 'Start a project'")
+
+# Save sandbox ID for later
+sandbox_id = sandbox.sandbox_id
+
+# Pause instead of killing
+sandbox.beta_pause()
+
+# Later, resume
+sandbox = Sandbox.connect(sandbox_id)
+sandbox.connect()  # Resume from paused state
+
+# Session is intact, continue working
+sandbox.commands.run("claude --resume")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+// Create and work
+const sandbox = await Sandbox.create("claude-code")
+await sandbox.commands.run("claude -p 'Start a project'")
+
+// Save sandbox ID for later
+const sandboxId = sandbox.sandboxId
+
+// Pause instead of killing
+await sandbox.betaPause()
+
+// Later, resume
+const resumed = await Sandbox.connect(sandboxId)
+await resumed.connect()  // Resume from paused state
+
+// Session is intact, continue working
+await resumed.commands.run("claude --resume")
+```
+</CodeGroup>
+
+## Session Management Pattern
+
+A complete session management implementation:
+
+```python
+class AgentSession:
+    def __init__(self, session_id: str):
+        self.session_id = session_id
+        self.sandbox = None
+
+    async def start(self):
+        """Start a new session."""
+        self.sandbox = Sandbox.create("claude-code")
+        return self.sandbox.sandbox_id
+
+    async def resume(self, sandbox_id: str):
+        """Resume an existing session."""
+        self.sandbox = Sandbox.connect(sandbox_id)
+        if not self.sandbox.is_running():
+            self.sandbox.connect()  # Resume if paused
+
+    async def run_task(self, prompt: str):
+        """Run a task with Claude."""
+        return self.sandbox.commands.run(
+            f"claude -p '{prompt}'",
+            timeout=300
+        )
+
+    async def save_state(self) -> dict:
+        """Save session state for external storage."""
+        # Get session files
+        result = self.sandbox.commands.run(
+            "find ~/.claude -name '*.jsonl'"
+        )
+
+        state = {
+            "sandbox_id": self.sandbox.sandbox_id,
+            "sessions": {}
+        }
+
+        for path in result.stdout.strip().split("\n"):
+            if path:
+                content = self.sandbox.files.read(path)
+                state["sessions"][path] = content
+
+        return state
+
+    async def pause(self):
+        """Pause the session."""
+        self.sandbox.beta_pause()
+
+    async def stop(self):
+        """Stop and clean up."""
+        self.sandbox.kill()
+```
+
+## Best Practices
+
+### 1. Regular Checkpoints
+
+Save session state periodically:
+
+```python
+import time
+import threading
+
+def checkpoint_thread(session, interval=300):
+    while session.sandbox.is_running():
+        state = session.save_state()
+        storage.save(session.session_id, state)
+        time.sleep(interval)
+```
+
+### 2. Handle Sandbox Timeouts
+
+Before timeout, save state:
+
+```python
+sandbox = Sandbox.create("claude-code", timeout=3600)
+
+# Set a reminder before timeout
+def save_before_timeout():
+    time.sleep(3500)  # 50 seconds before timeout
+    state = save_session_state(sandbox)
+    storage.save(session_id, state)
+
+threading.Thread(target=save_before_timeout, daemon=True).start()
+```
+
+### 3. Atomic State Updates
+
+Save state atomically to prevent corruption:
+
+```python
+import tempfile
+import os
+
+def save_state_atomically(session_id, state):
+    # Write to temp file first
+    with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+        json.dump(state, f)
+        temp_path = f.name
+
+    # Atomically replace
+    final_path = f"sessions/{session_id}.json"
+    os.rename(temp_path, final_path)
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Session Schemas" icon="code" href="/guides/claude-agent-sdk/schemas">
+    Understand session file formats.
+  </Card>
+  <Card title="Complete Example" icon="rocket" href="/guides/claude-agent-sdk/example">
+    See a full working example.
+  </Card>
+</CardGroup>

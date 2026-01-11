@@ -1,0 +1,392 @@
+---
+title: "Background Commands"
+description: "Running long-running processes in the background"
+---
+
+Background commands run without blocking your code. Use them for servers, long-running tasks, and processes you want to interact with later.
+
+## Starting a Background Command
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+
+# Start a command in the background
+handle = sandbox.commands.run("python3 -m http.server 8080", background=True)
+
+print(f"Server started with PID: {handle.pid}")
+
+# Your code continues immediately
+print("Doing other work...")
+
+# Later, you can interact with the command
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+// Start a command in the background
+const handle = await sandbox.commands.run("python3 -m http.server 8080", { background: true })
+
+console.log(`Server started with PID: ${handle.pid}`)
+
+// Your code continues immediately
+console.log("Doing other work...")
+
+// Later, you can interact with the command
+```
+</CodeGroup>
+
+## Command Handle
+
+The `CommandHandle` provides methods to interact with the running command:
+
+| Method | Description |
+|--------|-------------|
+| `wait()` | Block until command completes |
+| `kill()` | Terminate the command |
+| `send_stdin(data)` / `sendStdin(data)` | Send input to the command |
+| `disconnect()` | Stop receiving events without killing |
+
+| Property | Description |
+|----------|-------------|
+| `pid` | Process ID |
+| `stdout` | Accumulated stdout so far |
+| `stderr` | Accumulated stderr so far |
+| `exit_code` / `exitCode` | Exit code (after completion) |
+
+## Waiting for Completion
+
+<CodeGroup>
+```python Python
+# Start long-running task
+handle = sandbox.commands.run("npm install", background=True)
+
+# Wait for it to complete
+result = handle.wait()
+
+print(f"Exit code: {result.exit_code}")
+print(f"Output: {result.stdout}")
+```
+
+```javascript JavaScript
+// Start long-running task
+const handle = await sandbox.commands.run("npm install", { background: true })
+
+// Wait for it to complete
+const result = await handle.wait()
+
+console.log(`Exit code: ${result.exitCode}`)
+console.log(`Output: ${result.stdout}`)
+```
+</CodeGroup>
+
+## Killing a Background Command
+
+<CodeGroup>
+```python Python
+# Start a server
+handle = sandbox.commands.run("python3 server.py", background=True)
+
+# Do some work...
+import time
+time.sleep(5)
+
+# Kill the server
+killed = handle.kill()
+print(f"Killed: {killed}")  # True
+```
+
+```javascript JavaScript
+// Start a server
+const handle = await sandbox.commands.run("python3 server.py", { background: true })
+
+// Do some work...
+await new Promise(resolve => setTimeout(resolve, 5000))
+
+// Kill the server
+const killed = await handle.kill()
+console.log(`Killed: ${killed}`)  // true
+```
+</CodeGroup>
+
+## Sending Input (stdin)
+
+<CodeGroup>
+```python Python
+# Start an interactive process
+handle = sandbox.commands.run(
+    "python3 -c 'while True: print(input().upper())'",
+    background=True,
+    stdin=True
+)
+
+# Send input
+handle.send_stdin("hello\n")
+time.sleep(0.1)
+handle.send_stdin("world\n")
+
+# Check output
+time.sleep(0.1)
+print(handle.stdout)  # HELLO\nWORLD\n
+
+handle.kill()
+```
+
+```javascript JavaScript
+// Start an interactive process
+const handle = await sandbox.commands.run(
+  "python3 -c 'while True: print(input().upper())'",
+  { background: true, stdin: true }
+)
+
+// Send input
+await handle.sendStdin("hello\n")
+await new Promise(resolve => setTimeout(resolve, 100))
+await handle.sendStdin("world\n")
+
+// Check output
+await new Promise(resolve => setTimeout(resolve, 100))
+console.log(handle.stdout)  // HELLO\nWORLD\n
+
+await handle.kill()
+```
+</CodeGroup>
+
+## Streaming Output
+
+Stream output from a background command:
+
+<CodeGroup>
+```python Python
+def on_output(data):
+    print(f"[stdout] {data}", end="")
+
+def on_error(data):
+    print(f"[stderr] {data}", end="")
+
+handle = sandbox.commands.run(
+    "for i in $(seq 1 5); do echo $i; sleep 1; done",
+    background=True,
+    on_stdout=on_output,
+    on_stderr=on_error
+)
+
+# Output streams in real-time while you do other work
+time.sleep(6)
+
+print(f"\nFinal exit code: {handle.exit_code}")
+```
+
+```javascript JavaScript
+const handle = await sandbox.commands.run(
+  "for i in $(seq 1 5); do echo $i; sleep 1; done",
+  {
+    background: true,
+    onStdout: (data) => process.stdout.write(`[stdout] ${data}`),
+    onStderr: (data) => process.stderr.write(`[stderr] ${data}`)
+  }
+)
+
+// Output streams in real-time while you do other work
+await new Promise(resolve => setTimeout(resolve, 6000))
+
+console.log(`\nFinal exit code: ${handle.exitCode}`)
+```
+</CodeGroup>
+
+## Disconnecting
+
+Stop receiving events without killing the process:
+
+<CodeGroup>
+```python Python
+handle = sandbox.commands.run("python3 server.py", background=True)
+
+# Stop receiving output but keep process running
+handle.disconnect()
+
+# Process is still running
+result = sandbox.commands.run("pgrep -f 'python3 server.py'")
+print(f"Still running: {result.exit_code == 0}")
+```
+
+```javascript JavaScript
+const handle = await sandbox.commands.run("python3 server.py", { background: true })
+
+// Stop receiving output but keep process running
+await handle.disconnect()
+
+// Process is still running
+const result = await sandbox.commands.run("pgrep -f 'python3 server.py'")
+console.log(`Still running: ${result.exitCode === 0}`)
+```
+</CodeGroup>
+
+## Listing Running Commands
+
+<CodeGroup>
+```python Python
+# Start some background commands
+sandbox.commands.run("sleep 100", background=True)
+sandbox.commands.run("python3 -m http.server 8080", background=True)
+
+# List all running commands
+processes = sandbox.commands.list()
+
+for proc in processes:
+    print(f"PID: {proc.pid}, Command: {proc.cmd} {proc.args}")
+```
+
+```javascript JavaScript
+// Start some background commands
+await sandbox.commands.run("sleep 100", { background: true })
+await sandbox.commands.run("python3 -m http.server 8080", { background: true })
+
+// List all running commands
+const processes = await sandbox.commands.list()
+
+for (const proc of processes) {
+  console.log(`PID: ${proc.pid}, Command: ${proc.cmd} ${proc.args.join(' ')}`)
+}
+```
+</CodeGroup>
+
+## Killing by PID
+
+<CodeGroup>
+```python Python
+# List processes and kill specific ones
+processes = sandbox.commands.list()
+
+for proc in processes:
+    if "http.server" in proc.cmd:
+        killed = sandbox.commands.kill(proc.pid)
+        print(f"Killed PID {proc.pid}: {killed}")
+```
+
+```javascript JavaScript
+// List processes and kill specific ones
+const processes = await sandbox.commands.list()
+
+for (const proc of processes) {
+  if (proc.cmd.includes("http.server")) {
+    const killed = await sandbox.commands.kill(proc.pid)
+    console.log(`Killed PID ${proc.pid}: ${killed}`)
+  }
+}
+```
+</CodeGroup>
+
+## Reconnecting to a Command
+
+Connect to a running command you started earlier:
+
+<CodeGroup>
+```python Python
+# Start a command
+handle = sandbox.commands.run("python3 long_task.py", background=True)
+pid = handle.pid
+
+# Later, or in another part of your code
+handle = sandbox.commands.connect(pid)
+
+# Now you can wait or interact with it
+result = handle.wait()
+```
+
+```javascript JavaScript
+// Start a command
+const handle = await sandbox.commands.run("python3 long_task.py", { background: true })
+const { pid } = handle
+
+// Later, or in another part of your code
+const reconnected = await sandbox.commands.connect(pid)
+
+// Now you can wait or interact with it
+const result = await reconnected.wait()
+```
+</CodeGroup>
+
+## Web Server Example
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+import requests
+
+sandbox = Sandbox.create()
+
+# Write a simple server
+sandbox.files.write("/home/user/server.py", """
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+print("Starting server on port 8080...")
+HTTPServer(("0.0.0.0", 8080), SimpleHTTPRequestHandler).serve_forever()
+""")
+
+# Start the server
+handle = sandbox.commands.run("python3 /home/user/server.py", background=True)
+
+# Wait for server to start
+import time
+time.sleep(2)
+
+# Get the public URL
+host = sandbox.get_host(8080)
+print(f"Server available at: https://{host}")
+
+# Make a request
+response = requests.get(f"https://{host}")
+print(f"Response status: {response.status_code}")
+
+# Clean up
+handle.kill()
+sandbox.kill()
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+// Write a simple server
+await sandbox.files.write("/home/user/server.py", `
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+print("Starting server on port 8080...")
+HTTPServer(("0.0.0.0", 8080), SimpleHTTPRequestHandler).serve_forever()
+`)
+
+// Start the server
+const handle = await sandbox.commands.run("python3 /home/user/server.py", { background: true })
+
+// Wait for server to start
+await new Promise(resolve => setTimeout(resolve, 2000))
+
+// Get the public URL
+const host = sandbox.getHost(8080)
+console.log(`Server available at: https://${host}`)
+
+// Make a request
+const response = await fetch(`https://${host}`)
+console.log(`Response status: ${response.status}`)
+
+// Clean up
+await handle.kill()
+await sandbox.kill()
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Interactive PTY" icon="terminal" href="/commands/pty">
+    Full terminal sessions.
+  </Card>
+  <Card title="Stdin/Stdout" icon="arrows-left-right" href="/commands/stdio">
+    Advanced I/O handling.
+  </Card>
+</CardGroup>

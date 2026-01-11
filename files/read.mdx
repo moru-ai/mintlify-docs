@@ -1,0 +1,220 @@
+---
+title: "Read Files"
+description: "Reading file contents from sandboxes"
+---
+
+Use `sandbox.files.read()` to read file contents. Supports text, binary, and streaming modes.
+
+## Read as Text
+
+The default format returns file contents as a string:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+
+# Read as text (default)
+content = sandbox.files.read("/etc/hostname")
+print(content)
+
+# Explicitly specify text format
+content = sandbox.files.read("/home/user/script.py", format="text")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+// Read as text (default)
+const content = await sandbox.files.read("/etc/hostname")
+console.log(content)
+
+// Explicitly specify text format
+const script = await sandbox.files.read("/home/user/script.py", { format: "text" })
+```
+</CodeGroup>
+
+## Read as Bytes
+
+For binary files, read as bytes:
+
+<CodeGroup>
+```python Python
+# Read as bytes
+data = sandbox.files.read("/path/to/image.png", format="bytes")
+print(f"File size: {len(data)} bytes")
+
+# Save locally
+with open("local_copy.png", "wb") as f:
+    f.write(data)
+```
+
+```javascript JavaScript
+// Read as bytes (Uint8Array)
+const data = await sandbox.files.read("/path/to/image.png", { format: "bytes" })
+console.log(`File size: ${data.length} bytes`)
+
+// Read as Blob
+const blob = await sandbox.files.read("/path/to/image.png", { format: "blob" })
+```
+</CodeGroup>
+
+## Stream Large Files
+
+For large files, use streaming to avoid loading everything into memory:
+
+<CodeGroup>
+```python Python
+# Read as stream (iterator)
+stream = sandbox.files.read("/path/to/large_file.bin", format="stream")
+
+with open("local_copy.bin", "wb") as f:
+    for chunk in stream:
+        f.write(chunk)
+```
+
+```javascript JavaScript
+// Read as stream
+const stream = await sandbox.files.read("/path/to/large_file.bin", { format: "stream" })
+
+const reader = stream.getReader()
+while (true) {
+  const { done, value } = await reader.read()
+  if (done) break
+  // Process chunk
+  console.log(`Received ${value.length} bytes`)
+}
+```
+</CodeGroup>
+
+## Read with User Context
+
+Read files as a specific user:
+
+<CodeGroup>
+```python Python
+# Read as root
+content = sandbox.files.read("/etc/shadow", user="root")
+
+# Read as another user
+content = sandbox.files.read("/home/alice/private.txt", user="alice")
+```
+
+```javascript JavaScript
+// Read as root
+const content = await sandbox.files.read("/etc/shadow", { user: "root" })
+
+// Read as another user
+const content = await sandbox.files.read("/home/alice/private.txt", { user: "alice" })
+```
+</CodeGroup>
+
+## Error Handling
+
+Handle common read errors:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+from moru.exceptions import NotFoundException
+
+try:
+    content = sandbox.files.read("/nonexistent/file.txt")
+except NotFoundException:
+    print("File not found")
+except Exception as e:
+    print(f"Read failed: {e}")
+```
+
+```javascript JavaScript
+import Sandbox, { NotFoundError } from '@moru-ai/core'
+
+try {
+  const content = await sandbox.files.read("/nonexistent/file.txt")
+} catch (error) {
+  if (error instanceof NotFoundError) {
+    console.log("File not found")
+  } else {
+    console.log(`Read failed: ${error.message}`)
+  }
+}
+```
+</CodeGroup>
+
+## Reading Multiple Files
+
+Read multiple files efficiently:
+
+<CodeGroup>
+```python Python
+# Read multiple files
+files_to_read = [
+    "/home/user/config.json",
+    "/home/user/data.csv",
+    "/home/user/readme.txt"
+]
+
+contents = {}
+for path in files_to_read:
+    if sandbox.files.exists(path):
+        contents[path] = sandbox.files.read(path)
+```
+
+```javascript JavaScript
+// Read multiple files in parallel
+const filesToRead = [
+  "/home/user/config.json",
+  "/home/user/data.csv",
+  "/home/user/readme.txt"
+]
+
+const contents = await Promise.all(
+  filesToRead.map(async (path) => {
+    if (await sandbox.files.exists(path)) {
+      return { path, content: await sandbox.files.read(path) }
+    }
+    return { path, content: null }
+  })
+)
+```
+</CodeGroup>
+
+## Download URL
+
+Get a URL to download files directly:
+
+<CodeGroup>
+```python Python
+# Get download URL (valid for limited time)
+url = sandbox.download_url("/path/to/file.zip")
+print(f"Download from: {url}")
+```
+
+```javascript JavaScript
+// Get download URL (valid for limited time)
+const url = await sandbox.downloadUrl("/path/to/file.zip")
+console.log(`Download from: ${url}`)
+```
+</CodeGroup>
+
+## Options Reference
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `format` | `"text"` \| `"bytes"` \| `"stream"` \| `"blob"` (JS) | Output format |
+| `user` | string | User context for reading |
+| `request_timeout` / `requestTimeoutMs` | number | Operation timeout |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Write Files" icon="pen" href="/files/write">
+    Create and update files.
+  </Card>
+  <Card title="List Directory" icon="folder-open" href="/files/list">
+    Explore directory contents.
+  </Card>
+</CardGroup>

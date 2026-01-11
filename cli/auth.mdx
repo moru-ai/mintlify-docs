@@ -1,0 +1,156 @@
+---
+title: "CLI Authentication"
+description: "Authenticating with the Moru CLI"
+---
+
+Authenticate with your Moru account to use CLI features.
+
+## Login
+
+```bash
+moru auth login
+```
+
+This opens a browser for OAuth authentication. After logging in:
+
+1. Your credentials are saved to `~/.moru/config.json`
+2. Your default team is selected
+3. You're ready to use Moru commands
+
+## Check Current User
+
+```bash
+moru auth info
+```
+
+Output:
+```
+Email: you@example.com
+Team: My Team
+Team ID: team_abc123
+```
+
+## Logout
+
+```bash
+moru auth logout
+```
+
+This removes your saved credentials.
+
+## Switch Teams
+
+If you belong to multiple teams:
+
+```bash
+moru auth configure
+```
+
+This shows an interactive prompt to select a team:
+
+```
+? Select team:
+  > My Team (team_abc123)
+    Other Team (team_xyz789)
+```
+
+## API Key Authentication
+
+For automation and scripts, use an API key instead of interactive login:
+
+```bash
+# Set API key as environment variable
+export MORU_API_KEY=moru_abc123...
+
+# Or pass directly to commands
+MORU_API_KEY=moru_abc123 moru sandbox list
+```
+
+Get your API key from the [dashboard](https://moru.io/dashboard/settings).
+
+## Token-Based Authentication
+
+For advanced use cases, you can also use access tokens:
+
+```bash
+export MORU_ACCESS_TOKEN=your_access_token
+```
+
+## Configuration File
+
+The CLI stores configuration in `~/.moru/config.json`:
+
+```json
+{
+  "email": "you@example.com",
+  "accessToken": "eyJ...",
+  "teamName": "My Team",
+  "teamId": "team_abc123",
+  "teamApiKey": "moru_xyz..."
+}
+```
+
+## Multiple Profiles
+
+To work with multiple accounts, use environment variables:
+
+```bash
+# Production
+export MORU_API_KEY=$MORU_PROD_KEY
+moru sandbox list
+
+# Development
+export MORU_API_KEY=$MORU_DEV_KEY
+moru sandbox list
+```
+
+## CI/CD Authentication
+
+For CI/CD pipelines, use environment variables:
+
+```yaml
+# GitHub Actions example
+env:
+  MORU_API_KEY: ${{ secrets.MORU_API_KEY }}
+
+steps:
+  - name: Create sandbox
+    run: moru sandbox create my-template
+```
+
+## Troubleshooting
+
+### "Not logged in" Error
+
+```bash
+# Check if you're logged in
+moru auth info
+
+# If not, log in
+moru auth login
+```
+
+### "Invalid API key" Error
+
+1. Verify your API key is correct
+2. Check if the key has the required permissions
+3. Ensure you're using the right team
+
+### Browser Doesn't Open
+
+If `moru auth login` doesn't open a browser:
+
+1. Copy the URL from the terminal
+2. Paste it in your browser manually
+3. Complete authentication
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Sandbox Commands" icon="cube" href="/cli/sandbox">
+    Create and manage sandboxes.
+  </Card>
+  <Card title="Template Commands" icon="layer-group" href="/cli/template">
+    Build and manage templates.
+  </Card>
+</CardGroup>

@@ -1,0 +1,223 @@
+---
+title: "Sandbox Commands"
+description: "Managing sandboxes with the Moru CLI"
+---
+
+Create, connect to, and manage sandboxes from the command line.
+
+## Create Sandbox
+
+Create a new sandbox and connect to it:
+
+```bash
+# Create with default 'base' template
+moru sandbox create
+
+# Create with specific template
+moru sandbox create python
+
+# Alias
+moru sbx cr python
+```
+
+When you exit the terminal, the sandbox is killed automatically.
+
+## Connect to Sandbox
+
+Connect to an existing running sandbox:
+
+```bash
+moru sandbox connect sbx_abc123
+
+# Alias
+moru sbx cn sbx_abc123
+```
+
+When you disconnect, the sandbox continues running.
+
+## List Sandboxes
+
+List your sandboxes:
+
+```bash
+# List running sandboxes (default)
+moru sandbox list
+
+# List all sandboxes including paused
+moru sandbox list --state running,paused
+
+# Filter by metadata
+moru sandbox list --metadata "project=myapp"
+
+# Output as JSON
+moru sandbox list --format json
+
+# Limit results
+moru sandbox list --limit 10
+
+# Aliases
+moru sbx ls
+```
+
+### Output Columns
+
+| Column | Description |
+|--------|-------------|
+| Sandbox ID | Unique identifier |
+| Template | Template used |
+| Alias | Sandbox name |
+| Started | Start time |
+| Ends | Scheduled end time |
+| State | running, paused, etc. |
+| vCPUs | CPU cores |
+| RAM MiB | Memory |
+
+## Kill Sandbox
+
+Terminate sandboxes:
+
+```bash
+# Kill specific sandbox
+moru sandbox kill sbx_abc123
+
+# Kill multiple sandboxes
+moru sandbox kill sbx_abc123 sbx_def456
+
+# Kill all running sandboxes
+moru sandbox kill --all
+
+# Kill sandboxes matching criteria
+moru sandbox kill --all --metadata "environment=dev"
+
+# Aliases
+moru sbx kl sbx_abc123
+```
+
+## View Logs
+
+Stream or view sandbox logs:
+
+```bash
+# View recent logs
+moru sandbox logs sbx_abc123
+
+# Stream logs in real-time
+moru sandbox logs sbx_abc123 --follow
+
+# Filter by log level
+moru sandbox logs sbx_abc123 --level WARN
+
+# Output as JSON
+moru sandbox logs sbx_abc123 --format json
+
+# Filter by logger
+moru sandbox logs sbx_abc123 --loggers "app,system"
+
+# Alias
+moru sbx lg sbx_abc123
+```
+
+### Log Levels
+
+- `DEBUG` - Detailed debugging
+- `INFO` - General information
+- `WARN` - Warnings
+- `ERROR` - Errors
+
+Higher levels include lower levels.
+
+## View Metrics
+
+Monitor resource usage:
+
+```bash
+# Show current metrics
+moru sandbox metrics sbx_abc123
+
+# Stream metrics in real-time
+moru sandbox metrics sbx_abc123 --follow
+
+# Output as JSON
+moru sandbox metrics sbx_abc123 --format json
+
+# Alias
+moru sbx mt sbx_abc123
+```
+
+Output:
+```
+CPU:    15.2% (2 cores)
+Memory: 256 MB / 512 MB
+Disk:   1.2 GB / 10 GB
+```
+
+## Configuration File
+
+Sandboxes can be configured via `moru.toml`:
+
+```toml
+# moru.toml
+template = "my-template"
+timeout = 600
+metadata = { project = "myapp", environment = "dev" }
+```
+
+Use with:
+```bash
+moru sandbox create --config ./moru.toml
+```
+
+## Common Workflows
+
+### Quick Development Session
+
+```bash
+# Create and connect
+moru sandbox create python
+
+# After exiting, sandbox is killed
+```
+
+### Long-Running Sandbox
+
+```bash
+# Create sandbox
+moru sandbox create python
+
+# Note the sandbox ID
+# Exit terminal (Ctrl+D)
+
+# Later, reconnect
+moru sandbox connect sbx_abc123
+```
+
+### Cleanup Old Sandboxes
+
+```bash
+# List all running sandboxes
+moru sandbox list
+
+# Kill all development sandboxes
+moru sandbox kill --all --metadata "environment=dev"
+```
+
+### Debug a Sandbox
+
+```bash
+# View logs
+moru sandbox logs sbx_abc123 --follow
+
+# Check resource usage
+moru sandbox metrics sbx_abc123 --follow
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Template Commands" icon="layer-group" href="/cli/template">
+    Build and manage templates.
+  </Card>
+  <Card title="SDK Quickstart" icon="rocket" href="/quickstart">
+    Use sandboxes programmatically.
+  </Card>
+</CardGroup>

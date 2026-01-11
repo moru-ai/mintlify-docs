@@ -1,0 +1,292 @@
+---
+title: "Setup & Deployment"
+description: "Setting up Claude Agent SDK in Moru sandboxes"
+---
+
+This guide walks through setting up a Moru template with Claude Agent SDK pre-installed.
+
+## Prerequisites
+
+- Moru API key ([get from dashboard](https://moru.io/dashboard))
+- Anthropic API key ([get from console](https://console.anthropic.com))
+
+## Creating the Template
+
+### Option 1: Using the SDK
+
+<CodeGroup>
+```python Python
+from moru import Template
+
+template = (
+    Template()
+    .from_node_image("lts")
+    .run_cmd("npm install -g @anthropic-ai/claude-code")
+    .set_envs({
+        "CLAUDE_CODE_DISABLE_TELEMETRY": "1"
+    })
+    .set_workdir("/home/user")
+)
+
+info = Template.build(template, alias="claude-code")
+print(f"Template ID: {info.template_id}")
+```
+
+```javascript JavaScript
+import { Template } from '@moru-ai/core'
+
+const template = Template()
+  .fromNodeImage("lts")
+  .runCmd("npm install -g @anthropic-ai/claude-code")
+  .setEnvs({
+    CLAUDE_CODE_DISABLE_TELEMETRY: "1"
+  })
+  .setWorkdir("/home/user")
+
+const info = await Template.build(template, { alias: "claude-code" })
+console.log(`Template ID: ${info.templateId}`)
+```
+</CodeGroup>
+
+### Option 2: Using a Dockerfile
+
+Create a Dockerfile:
+
+```dockerfile
+FROM node:20-slim
+
+# Install Claude Code CLI
+RUN npm install -g @anthropic-ai/claude-code
+
+# Install common development tools
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    python3 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configure workspace
+WORKDIR /home/user
+ENV HOME=/home/user
+ENV CLAUDE_CODE_DISABLE_TELEMETRY=1
+
+# Create user directory structure
+RUN mkdir -p /home/user/.claude
+```
+
+Build using CLI:
+
+```bash
+moru template create claude-code --dockerfile ./Dockerfile
+```
+
+## Using the Template
+
+### Create a Sandbox
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create("claude-code", {
+    "envs": {
+        "ANTHROPIC_API_KEY": "sk-ant-..."
+    },
+    "timeout": 3600  # 1 hour
+})
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create("claude-code", {
+  envs: {
+    ANTHROPIC_API_KEY: "sk-ant-..."
+  },
+  timeoutMs: 3600000  // 1 hour
+})
+```
+</CodeGroup>
+
+### Run Agent Tasks
+
+<CodeGroup>
+```python Python
+# Single task
+result = sandbox.commands.run(
+    "claude -p 'Create a Python Flask API with one endpoint'",
+    timeout=300,
+    on_stdout=lambda data: print(data, end=""),
+    on_stderr=lambda data: print(f"ERR: {data}", end="")
+)
+
+print(f"Exit code: {result.exit_code}")
+```
+
+```javascript JavaScript
+// Single task
+const result = await sandbox.commands.run(
+  "claude -p 'Create a Python Flask API with one endpoint'",
+  {
+    timeoutMs: 300000,
+    onStdout: (data) => process.stdout.write(data),
+    onStderr: (data) => process.stderr.write(`ERR: ${data}`)
+  }
+)
+
+console.log(`Exit code: ${result.exitCode}`)
+```
+</CodeGroup>
+
+### Interactive Mode
+
+For interactive conversations, use background commands:
+
+<CodeGroup>
+```python Python
+# Start Claude Code in interactive mode
+handle = sandbox.commands.run(
+    "claude",
+    background=True,
+    stdin=True,
+    on_stdout=lambda data: print(data, end="")
+)
+
+# Send messages
+handle.send_stdin("Create a hello world script\n")
+
+# Wait for response, then send more
+import time
+time.sleep(10)
+handle.send_stdin("Now add error handling\n")
+
+# When done
+handle.kill()
+```
+
+```javascript JavaScript
+// Start Claude Code in interactive mode
+const handle = await sandbox.commands.run(
+  "claude",
+  {
+    background: true,
+    stdin: true,
+    onStdout: (data) => process.stdout.write(data)
+  }
+)
+
+// Send messages
+await handle.sendStdin("Create a hello world script\n")
+
+// Wait for response, then send more
+await new Promise(resolve => setTimeout(resolve, 10000))
+await handle.sendStdin("Now add error handling\n")
+
+// When done
+await handle.kill()
+```
+</CodeGroup>
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `ANTHROPIC_API_KEY` | Your Anthropic API key (required) |
+| `CLAUDE_CODE_DISABLE_TELEMETRY` | Disable telemetry (`1` to disable) |
+| `CLAUDE_CODE_MAX_TOKENS` | Max tokens for responses |
+
+### Workspace Setup
+
+Set up a project workspace:
+
+<CodeGroup>
+```python Python
+# Write project files
+sandbox.files.write("/home/user/project/README.md", "# My Project")
+sandbox.files.write("/home/user/project/requirements.txt", "flask\npytest")
+
+# Run Claude in that directory
+result = sandbox.commands.run(
+    "claude -p 'Set up this project'",
+    cwd="/home/user/project"
+)
+```
+
+```javascript JavaScript
+// Write project files
+await sandbox.files.write("/home/user/project/README.md", "# My Project")
+await sandbox.files.write("/home/user/project/requirements.txt", "flask\npytest")
+
+// Run Claude in that directory
+const result = await sandbox.commands.run(
+  "claude -p 'Set up this project'",
+  { cwd: "/home/user/project" }
+)
+```
+</CodeGroup>
+
+## Best Practices
+
+### 1. Set Appropriate Timeouts
+
+Claude tasks can take time. Set generous timeouts:
+
+```python
+sandbox = Sandbox.create("claude-code", timeout=3600)  # 1 hour
+result = sandbox.commands.run("claude -p '...'", timeout=300)  # 5 minutes per task
+```
+
+### 2. Handle Long-Running Tasks
+
+For complex tasks, use background commands:
+
+```python
+handle = sandbox.commands.run("claude -p 'Build a complete app'", background=True)
+
+# Check progress
+while not handle.exit_code:
+    print(f"Output so far: {len(handle.stdout)} chars")
+    time.sleep(5)
+
+result = handle.wait()
+```
+
+### 3. Secure API Keys
+
+Never hardcode API keys:
+
+```python
+import os
+
+sandbox = Sandbox.create("claude-code", {
+    "envs": {
+        "ANTHROPIC_API_KEY": os.environ["ANTHROPIC_API_KEY"]
+    }
+})
+```
+
+### 4. Save Work Before Timeout
+
+Before a sandbox times out, save important files:
+
+```python
+# Save workspace
+workspace = sandbox.files.read("/home/user/project", format="bytes")
+with open("workspace_backup.tar", "wb") as f:
+    sandbox.commands.run("tar -czf - /home/user/project")
+    # ... save output
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Session Persistence" icon="floppy-disk" href="/guides/claude-agent-sdk/session-persistence">
+    Persist and resume sessions.
+  </Card>
+  <Card title="Session Schemas" icon="code" href="/guides/claude-agent-sdk/schemas">
+    Understand session formats.
+  </Card>
+</CardGroup>

@@ -1,0 +1,152 @@
+---
+title: "Rate Limits"
+description: "API rate limiting in Moru"
+---
+
+Moru applies rate limits to ensure fair usage and platform stability.
+
+## Rate Limit Headers
+
+API responses include rate limit headers:
+
+| Header | Description |
+|--------|-------------|
+| `X-RateLimit-Limit` | Maximum requests per window |
+| `X-RateLimit-Remaining` | Remaining requests in window |
+| `X-RateLimit-Reset` | Unix timestamp when window resets |
+
+## Default Limits
+
+| Resource | Limit |
+|----------|-------|
+| Sandbox creation | 60 per minute |
+| API requests | 1000 per minute |
+| Template builds | 10 per hour |
+
+## Handling Rate Limits
+
+When you exceed rate limits, you'll receive a `429 Too Many Requests` response.
+
+<CodeGroup>
+```python Python
+import time
+from moru import Sandbox
+from moru.exceptions import SandboxException
+
+def create_with_backoff(max_retries=5):
+    for attempt in range(max_retries):
+        try:
+            return Sandbox.create()
+        except SandboxException as e:
+            if "rate limit" in str(e).lower():
+                wait = 2 ** attempt  # Exponential backoff
+                print(f"Rate limited, waiting {wait}s...")
+                time.sleep(wait)
+            else:
+                raise
+    raise Exception("Max retries exceeded")
+```
+
+```javascript JavaScript
+import Sandbox, { RateLimitError } from '@moru-ai/core'
+
+async function createWithBackoff(maxRetries = 5) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await Sandbox.create()
+    } catch (error) {
+      if (error instanceof RateLimitError) {
+        const wait = Math.pow(2, attempt) * 1000
+        console.log(`Rate limited, waiting ${wait}ms...`)
+        await new Promise(resolve => setTimeout(resolve, wait))
+      } else {
+        throw error
+      }
+    }
+  }
+  throw new Error("Max retries exceeded")
+}
+```
+</CodeGroup>
+
+## Best Practices
+
+### 1. Implement Retry Logic
+
+Always implement exponential backoff for rate limit errors:
+
+```python
+import time
+
+def with_retry(fn, max_retries=5):
+    for attempt in range(max_retries):
+        try:
+            return fn()
+        except Exception as e:
+            if "rate limit" in str(e).lower() and attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+            else:
+                raise
+```
+
+### 2. Batch Operations
+
+Reduce API calls by batching:
+
+```python
+# Instead of multiple writes
+for file in files:
+    sandbox.files.write(file["path"], file["data"])
+
+# Use batch write
+sandbox.files.write_files(files)
+```
+
+### 3. Reuse Sandboxes
+
+Keep sandboxes alive instead of creating new ones:
+
+```python
+# Create once
+sandbox = Sandbox.create(timeout=3600)
+
+# Reuse for multiple operations
+for task in tasks:
+    result = sandbox.commands.run(task)
+
+# Clean up when done
+sandbox.kill()
+```
+
+### 4. Cache Template IDs
+
+Avoid repeated template lookups:
+
+```python
+# Look up once
+template_id = get_template_id("my-template")
+
+# Reuse the ID
+for _ in range(10):
+    sandbox = Sandbox.create(template_id)
+```
+
+## Increasing Limits
+
+Contact us to increase rate limits:
+
+- **Pro plan**: Higher default limits
+- **Enterprise**: Custom limits based on needs
+
+Visit the [pricing page](/pricing) or contact sales.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Resource Quotas" icon="gauge" href="/limits/quotas">
+    Understand resource limits.
+  </Card>
+  <Card title="Pricing" icon="credit-card" href="/pricing">
+    View pricing and plans.
+  </Card>
+</CardGroup>

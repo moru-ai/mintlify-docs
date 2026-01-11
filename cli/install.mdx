@@ -1,0 +1,131 @@
+---
+title: "CLI Installation"
+description: "Installing the Moru command-line interface"
+---
+
+The Moru CLI provides command-line access to sandbox and template management.
+
+## Installation
+
+### npm (Recommended)
+
+```bash
+npm install -g @moru-ai/cli
+```
+
+### Verify Installation
+
+```bash
+moru --version
+```
+
+## First-Time Setup
+
+After installation, log in to connect your Moru account:
+
+```bash
+moru auth login
+```
+
+This opens a browser window for authentication. After logging in, your credentials are saved locally.
+
+## Configuration
+
+The CLI stores configuration in `~/.moru/config.json`:
+
+```json
+{
+  "email": "you@example.com",
+  "accessToken": "...",
+  "teamName": "My Team",
+  "teamId": "team_...",
+  "teamApiKey": "moru_..."
+}
+```
+
+## Environment Variables
+
+Override configuration with environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `MORU_API_KEY` | API key for SDK operations |
+| `MORU_ACCESS_TOKEN` | Access token (from login) |
+| `MORU_DOMAIN` | API domain (default: moru.io) |
+
+```bash
+# Use a specific API key
+export MORU_API_KEY=moru_abc123...
+
+# Run commands
+moru sandbox list
+```
+
+## Command Structure
+
+The CLI is organized into command groups:
+
+```
+moru
+├── auth          # Authentication commands
+│   ├── login     # Log in to Moru
+│   ├── logout    # Log out
+│   ├── info      # Show current user
+│   └── configure # Configure settings
+├── sandbox (sbx) # Sandbox commands
+│   ├── create    # Create sandbox
+│   ├── connect   # Connect to sandbox
+│   ├── list      # List sandboxes
+│   ├── kill      # Kill sandbox
+│   ├── logs      # View logs
+│   └── metrics   # View metrics
+└── template (tpl)# Template commands
+    ├── init      # Initialize template
+    ├── create    # Build template
+    ├── list      # List templates
+    ├── delete    # Delete template
+    ├── publish   # Make public
+    └── unpublish # Make private
+```
+
+## Aliases
+
+Common commands have short aliases:
+
+| Full Command | Alias |
+|--------------|-------|
+| `moru sandbox` | `moru sbx` |
+| `moru sandbox create` | `moru sbx cr` |
+| `moru sandbox connect` | `moru sbx cn` |
+| `moru sandbox list` | `moru sbx ls` |
+| `moru sandbox kill` | `moru sbx kl` |
+| `moru sandbox logs` | `moru sbx lg` |
+| `moru sandbox metrics` | `moru sbx mt` |
+| `moru template` | `moru tpl` |
+| `moru template create` | `moru tpl ct` |
+| `moru template list` | `moru tpl ls` |
+| `moru template delete` | `moru tpl dl` |
+
+## Help
+
+Get help for any command:
+
+```bash
+moru --help
+moru sandbox --help
+moru sandbox create --help
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/cli/auth">
+    Set up CLI authentication.
+  </Card>
+  <Card title="Sandbox Commands" icon="cube" href="/cli/sandbox">
+    Manage sandboxes via CLI.
+  </Card>
+  <Card title="Template Commands" icon="layer-group" href="/cli/template">
+    Build and manage templates.
+  </Card>
+</CardGroup>

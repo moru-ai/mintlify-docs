@@ -1,0 +1,261 @@
+---
+title: "Kill Sandbox"
+description: "Terminating sandboxes and cleaning up resources"
+---
+
+Use `sandbox.kill()` to terminate a sandbox and release its resources. Once killed, a sandbox cannot be recovered.
+
+## Basic Usage
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+
+# Do some work...
+result = sandbox.commands.run("echo 'Hello'")
+
+# Terminate the sandbox
+sandbox.kill()
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+// Do some work...
+const result = await sandbox.commands.run("echo 'Hello'")
+
+// Terminate the sandbox
+await sandbox.kill()
+```
+</CodeGroup>
+
+## Kill by ID
+
+You can also kill a sandbox without connecting to it first:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+# Kill directly by ID
+Sandbox.kill("sbx_abc123...")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+// Need to connect first, then kill
+const sandbox = await Sandbox.connect("sbx_abc123...")
+await sandbox.kill()
+```
+</CodeGroup>
+
+## Context Manager (Python)
+
+Use Python's context manager for automatic cleanup:
+
+```python
+from moru import Sandbox
+
+with Sandbox.create() as sandbox:
+    result = sandbox.commands.run("echo 'Hello'")
+    print(result.stdout)
+
+# Sandbox is automatically killed when exiting the context
+```
+
+For async code:
+
+```python
+import asyncio
+from moru import AsyncSandbox
+
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+        result = await sandbox.commands.run("echo 'Hello'")
+        print(result.stdout)
+
+    # Sandbox is automatically killed
+
+asyncio.run(main())
+```
+
+## Pause vs Kill (Beta)
+
+Instead of killing, you can pause a sandbox to preserve its state:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+
+# Write some files
+sandbox.files.write("/data/important.txt", "Preserve this!")
+
+# Pause instead of kill - filesystem is preserved
+sandbox.beta_pause()
+
+# Later, resume the sandbox
+sandbox = Sandbox.connect("sbx_abc123...")
+sandbox.connect()  # Resume from paused state
+
+# Data is still there
+content = sandbox.files.read("/data/important.txt")
+print(content)  # Preserve this!
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+// Write some files
+await sandbox.files.write("/data/important.txt", "Preserve this!")
+
+// Pause instead of kill - filesystem is preserved
+await sandbox.betaPause()
+
+// Later, resume the sandbox
+const resumed = await Sandbox.connect("sbx_abc123...")
+await resumed.connect()  // Resume from paused state
+
+// Data is still there
+const content = await sandbox.files.read("/data/important.txt")
+console.log(content)  // Preserve this!
+```
+</CodeGroup>
+
+<Note>
+  The pause feature is in beta. Paused sandboxes still count toward your quota and may have time limits.
+</Note>
+
+## Error Handling
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+from moru.exceptions import NotFoundException
+
+try:
+    sandbox = Sandbox.connect("sbx_abc123...")
+    sandbox.kill()
+except NotFoundException:
+    print("Sandbox already terminated")
+```
+
+```javascript JavaScript
+import Sandbox, { NotFoundError } from '@moru-ai/core'
+
+try {
+  const sandbox = await Sandbox.connect("sbx_abc123...")
+  await sandbox.kill()
+} catch (error) {
+  if (error instanceof NotFoundError) {
+    console.log("Sandbox already terminated")
+  }
+}
+```
+</CodeGroup>
+
+## Kill Multiple Sandboxes
+
+Kill all sandboxes matching certain criteria:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+# List and kill all running sandboxes
+for info in Sandbox.list():
+    if info.metadata.get("environment") == "development":
+        Sandbox.kill(info.sandbox_id)
+        print(f"Killed {info.sandbox_id}")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+// List and kill all running sandboxes
+const paginator = Sandbox.list()
+for await (const info of paginator) {
+  if (info.metadata?.environment === "development") {
+    const sandbox = await Sandbox.connect(info.sandboxId)
+    await sandbox.kill()
+    console.log(`Killed ${info.sandboxId}`)
+  }
+}
+```
+</CodeGroup>
+
+## What Happens on Kill
+
+When a sandbox is killed:
+
+1. All running processes are terminated immediately
+2. The filesystem is deleted (unless paused)
+3. Network connections are closed
+4. Resources (CPU, memory, disk) are released
+5. The sandbox ID becomes invalid
+
+<Warning>
+  Killing a sandbox is irreversible. All data in the sandbox filesystem is permanently deleted unless you've extracted it first.
+</Warning>
+
+## Graceful Shutdown
+
+For graceful cleanup, stop processes before killing:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+
+# Start a background process
+sandbox.commands.run("python3 server.py", background=True)
+
+# Graceful shutdown
+sandbox.commands.run("pkill -SIGTERM python3")
+
+# Wait for cleanup
+import time
+time.sleep(2)
+
+# Now kill
+sandbox.kill()
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+
+// Start a background process
+await sandbox.commands.run("python3 server.py", { background: true })
+
+// Graceful shutdown
+await sandbox.commands.run("pkill -SIGTERM python3")
+
+// Wait for cleanup
+await new Promise(resolve => setTimeout(resolve, 2000))
+
+// Now kill
+await sandbox.kill()
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Timeout & Lifecycle" icon="clock" href="/sandbox/timeout">
+    Manage automatic sandbox termination.
+  </Card>
+  <Card title="Sandbox Overview" icon="cube" href="/sandbox/overview">
+    Learn about sandbox lifecycle states.
+  </Card>
+</CardGroup>
