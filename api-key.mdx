@@ -1,0 +1,71 @@
+---
+title: "API Key"
+description: "Authenticate with Moru using your API key"
+---
+
+Your API key is used to authenticate requests to the Moru API. You can use it with the SDK or set it as an environment variable.
+
+## Getting Your API Key
+
+1. Go to [Dashboard > API Keys](https://moru.io/dashboard?tab=keys)
+2. Click **Create API Key**
+3. Copy your API key
+
+<Warning>
+Keep your API key secure. Do not expose it in client-side code or commit it to version control.
+</Warning>
+
+## Using the API Key
+
+### Environment Variable (Recommended)
+
+Set the `MORU_API_KEY` environment variable. The SDK will automatically use it.
+
+```bash
+export MORU_API_KEY=your_api_key_here
+```
+
+Then use the SDK without passing the key:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create()
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create()
+```
+</CodeGroup>
+
+### Inline (Direct)
+
+You can also pass the API key directly to the SDK:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox
+
+sandbox = Sandbox.create(api_key="your_api_key_here")
+```
+
+```javascript JavaScript
+import Sandbox from '@moru-ai/core'
+
+const sandbox = await Sandbox.create({ apiKey: 'your_api_key_here' })
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Create your first sandbox.
+  </Card>
+  <Card title="SDK Reference" icon="book" href="/sdk/python">
+    Explore the SDK documentation.
+  </Card>
+</CardGroup>
