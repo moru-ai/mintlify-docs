@@ -93,21 +93,6 @@
             "pages": ["examples/maru"]
           }
         ]
-      },
-      {
-        "tab": "Guides",
-        "groups": [
-          {
-            "group": "Claude Agent SDK",
-            "pages": [
-              "guides/claude-agent-sdk/overview",
-              "guides/claude-agent-sdk/setup",
-              "guides/claude-agent-sdk/session-persistence",
-              "guides/claude-agent-sdk/schemas",
-              "guides/claude-agent-sdk/example"
-            ]
-          }
-        ]
       }
     ],
     "global": {
