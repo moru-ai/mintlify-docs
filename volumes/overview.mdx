@@ -1,0 +1,128 @@
+---
+title: "Volumes Overview"
+description: "Persistent storage for sandbox data that survives restarts"
+---
+
+Volumes provide persistent storage for sandboxes. Unlike sandbox filesystem which is ephemeral, data written to a volume persists across sandbox restarts and can be accessed without a running sandbox.
+
+## When to Use Volumes
+
+Volumes are ideal for:
+
+- **Agent workspaces** - Git repositories, project files that persist between sessions
+- **Large datasets** - Data that shouldn't be re-downloaded on every sandbox start
+- **Shared state** - Files accessed by multiple sandboxes over time
+- **Cold access** - Browsing or downloading files without spinning up a sandbox
+
+## How It Works
+
+```
+Volume (Persistent)           Sandbox (Ephemeral)
+┌────────────────────┐       ┌────────────────────┐
+│ JuiceFS Mount      │──────►│ /workspace/data    │
+│ ─────────────      │       │                    │
+│ Redis (metadata)   │       │ Full POSIX access  │
+│ GCS (data chunks)  │       │ Lazy loading       │
+│                    │       │ Crash-safe writes  │
+└────────────────────┘       └────────────────────┘
+         │
+         ▼
+    ┌────────────────────┐
+    │ API File Access    │
+    │ (No sandbox needed)│
+    └────────────────────┘
+```
+
+Volumes use JuiceFS under the hood, providing:
+
+- **POSIX compatibility** - Supports all standard file operations
+- **Lazy loading** - Files load on-demand, not at startup
+- **Crash durability** - Writes are persisted immediately
+- **Cold access** - List, upload, and download files via API
+
+## Quick Start
+
+<CodeGroup>
+```python Python
+from moru import Sandbox, Volume
+
+# Create a volume
+vol = Volume.create(name="my-workspace")
+
+# Attach to sandbox
+sbx = Sandbox.create(
+    template="base",
+    volume_id=vol.volume_id,
+    volume_mount_path="/workspace"
+)
+
+# Work with files in the mounted volume
+sbx.commands.run("git clone https://github.com/user/repo /workspace")
+
+# Kill sandbox - data persists in volume
+sbx.kill()
+
+# Later: access files without sandbox
+files = vol.list_files("/")
+content = vol.download("/README.md")
+```
+
+```javascript JavaScript
+import { Sandbox, Volume } from '@moru-ai/core'
+
+// Create a volume
+const vol = await Volume.create({ name: "my-workspace" })
+
+// Attach to sandbox
+const sbx = await Sandbox.create("base", {
+  volumeId: vol.volumeId,
+  volumeMountPath: "/workspace"
+})
+
+// Work with files in the mounted volume
+await sbx.commands.run("git clone https://github.com/user/repo /workspace")
+
+// Kill sandbox - data persists in volume
+await sbx.kill()
+
+// Later: access files without sandbox
+const files = await vol.listFiles("/")
+const content = await vol.download("/README.md")
+```
+</CodeGroup>
+
+## Volume vs Sandbox Filesystem
+
+| Feature | Volume | Sandbox Filesystem |
+|---------|--------|-------------------|
+| Persistence | Survives restarts | Lost on kill |
+| Access without sandbox | Yes (API) | No |
+| Startup time | Instant (lazy load) | Instant |
+| Max size | 10 TB | Based on template |
+| Cost | Storage + metadata | Included |
+
+## Limits
+
+| Limit | Value |
+|-------|-------|
+| Max volume size | 10 TB |
+| Max file size | 1 TB |
+| Volume name length | 63 characters |
+| Volumes per team | 1000 |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Create Volume" icon="plus" href="/volumes/create">
+    Create and manage volumes.
+  </Card>
+  <Card title="Attach to Sandbox" icon="link" href="/volumes/attach">
+    Mount volumes in sandboxes.
+  </Card>
+  <Card title="File Operations" icon="folder" href="/volumes/files">
+    List, upload, and download files.
+  </Card>
+  <Card title="Volume Lifecycle" icon="rotate" href="/volumes/lifecycle">
+    Persistence, deletion, and best practices.
+  </Card>
+</CardGroup>

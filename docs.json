@@ -28,6 +28,16 @@
             ]
           },
           {
+            "group": "Volumes",
+            "pages": [
+              "volumes/overview",
+              "volumes/create",
+              "volumes/attach",
+              "volumes/files",
+              "volumes/lifecycle"
+            ]
+          },
+          {
             "group": "Files",
             "pages": [
               "files/overview",

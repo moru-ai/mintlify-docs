@@ -1,0 +1,210 @@
+---
+title: "Volume Lifecycle"
+description: "Understanding volume persistence, deletion, and best practices"
+---
+
+Volumes have an independent lifecycle from sandboxes. Understanding how they persist and when to delete them helps manage storage costs and data organization.
+
+## Lifecycle Overview
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Created   │────►│   Active    │────►│   Deleted   │
+│             │     │             │     │             │
+│ Volume.create()   │ Attach to   │     │ vol.delete()│
+│             │     │ sandboxes,  │     │             │
+│             │     │ file ops    │     │ Data lost   │
+└─────────────┘     └─────────────┘     └─────────────┘
+                          │
+                          │ Sandbox killed
+                          │
+                          ▼
+                    Still Active!
+                    (Data persists)
+```
+
+## What Persists
+
+| Action | Volume Data |
+|--------|-------------|
+| Sandbox killed | **Persists** |
+| Sandbox timeout | **Persists** |
+| Sandbox crash | **Persists** |
+| Account idle | **Persists** |
+| `vol.delete()` | **Deleted** |
+
+## When to Delete Volumes
+
+Delete volumes when:
+
+- Project is complete and data is no longer needed
+- Data has been exported elsewhere
+- Volume was created for testing
+
+Keep volumes when:
+
+- Agent needs to resume work later
+- Multiple sessions need the same data
+- You want cold access to files
+
+## Deletion Behavior
+
+Deleting a volume:
+
+1. Immediately removes all file data
+2. Removes volume metadata
+3. Frees the volume name for reuse
+4. Cannot be undone
+
+<CodeGroup>
+```python Python
+from moru import Volume
+
+vol = Volume.get("old-project")
+
+# Delete the volume
+vol.delete()
+
+# Volume name can now be reused
+new_vol = Volume.create(name="old-project")  # Works!
+```
+
+```javascript JavaScript
+import { Volume } from '@moru-ai/core'
+
+const vol = await Volume.get("old-project")
+
+// Delete the volume
+await vol.delete()
+
+// Volume name can now be reused
+const newVol = await Volume.create({ name: "old-project" })  // Works!
+```
+</CodeGroup>
+
+<Warning>
+Volume deletion is permanent. Always verify you have backups or exports before deleting.
+</Warning>
+
+## Storage Costs
+
+Volume storage is billed based on:
+
+- **Data stored** - GCS storage costs (~$0.02/GB/month)
+- **Metadata** - Redis cluster costs (fixed monthly)
+
+<Tip>
+Delete unused volumes to reduce storage costs. Use `Volume.list()` to audit your volumes periodically.
+</Tip>
+
+## Best Practices
+
+### Use Meaningful Names
+
+```python
+# Good - descriptive and organized
+Volume.create(name="project-alpha-workspace")
+Volume.create(name="agent-training-data-v2")
+Volume.create(name="user-123-session-abc")
+
+# Avoid - generic or unclear
+Volume.create(name="data")
+Volume.create(name="test")
+Volume.create(name="temp")
+```
+
+### Clean Up Test Volumes
+
+```python
+from moru import Volume
+
+# After testing, clean up
+for vol in Volume.list():
+    if vol.name.startswith("test-"):
+        print(f"Deleting test volume: {vol.name}")
+        vol.delete()
+```
+
+### Export Before Deletion
+
+```python
+from moru import Volume
+import zipfile
+import io
+
+vol = Volume.get("completed-project")
+
+# Export important files before deletion
+files_to_export = ["/results/report.pdf", "/results/data.csv"]
+for path in files_to_export:
+    content = vol.download(path)
+    with open(f"backup_{path.split('/')[-1]}", "wb") as f:
+        f.write(content)
+
+# Now safe to delete
+vol.delete()
+```
+
+### One Volume Per Project
+
+Organize volumes by project or purpose:
+
+```python
+# Each project gets its own volume
+projects = {
+    "web-scraper": "scraper-workspace",
+    "data-analysis": "analysis-data",
+    "code-review": "review-workspace",
+}
+
+for project, vol_name in projects.items():
+    vol = Volume.create(name=vol_name)
+    print(f"Created volume for {project}: {vol.volume_id}")
+```
+
+## Volume Status
+
+Volumes are always in one of these states:
+
+| Status | Description |
+|--------|-------------|
+| `creating` | Volume being initialized |
+| `available` | Ready for use |
+| `deleting` | Being deleted |
+
+<CodeGroup>
+```python Python
+from moru import Volume
+
+vol = Volume.get("my-workspace")
+print(f"Status: {vol.status}")  # "available"
+```
+
+```javascript JavaScript
+import { Volume } from '@moru-ai/core'
+
+const vol = await Volume.get("my-workspace")
+console.log(`Status: ${vol.status}`)  // "available"
+```
+</CodeGroup>
+
+## Concurrent Access
+
+Multiple sandboxes can attach the same volume, but be careful with concurrent writes:
+
+- **Safe**: One sandbox writes, others read
+- **Safe**: Different sandboxes write to different files
+- **Risky**: Multiple sandboxes write to the same file
+
+For concurrent write scenarios, use file locking or separate volumes.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Create Volume" icon="plus" href="/volumes/create">
+    Start creating volumes.
+  </Card>
+  <Card title="File Operations" icon="folder" href="/volumes/files">
+    Manage files in your volumes.
+  </Card>
+</CardGroup>

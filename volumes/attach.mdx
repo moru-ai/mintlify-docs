@@ -1,0 +1,260 @@
+---
+title: "Attach to Sandbox"
+description: "Mounting volumes in sandboxes for persistent storage"
+---
+
+Attach a volume to a sandbox to access persistent storage. The volume mounts instantly with lazy loading - no download required at startup.
+
+## Basic Usage
+
+<CodeGroup>
+```python Python
+from moru import Sandbox, Volume
+
+# Create or get volume
+vol = Volume.create(name="my-workspace")
+
+# Create sandbox with volume attached
+sbx = Sandbox.create(
+    template="base",
+    volume_id=vol.volume_id,
+    volume_mount_path="/workspace"
+)
+
+# Files in /workspace persist to the volume
+sbx.commands.run("echo 'Hello' > /workspace/hello.txt")
+```
+
+```javascript JavaScript
+import { Sandbox, Volume } from '@moru-ai/core'
+
+// Create or get volume
+const vol = await Volume.create({ name: "my-workspace" })
+
+// Create sandbox with volume attached
+const sbx = await Sandbox.create("base", {
+  volumeId: vol.volumeId,
+  volumeMountPath: "/workspace"
+})
+
+// Files in /workspace persist to the volume
+await sbx.commands.run("echo 'Hello' > /workspace/hello.txt")
+```
+
+```bash CLI
+# Create sandbox with volume
+moru sandbox create --template base --volume my-workspace --volume-mount /workspace
+```
+</CodeGroup>
+
+## Mount Path Requirements
+
+The mount path must:
+
+- Be an absolute path (start with `/`)
+- Start with one of these prefixes:
+  - `/workspace/`
+  - `/data/`
+  - `/mnt/`
+  - `/volumes/`
+
+<CodeGroup>
+```python Python
+# Valid mount paths
+Sandbox.create(volume_mount_path="/workspace/data")
+Sandbox.create(volume_mount_path="/data/input")
+Sandbox.create(volume_mount_path="/mnt/storage")
+Sandbox.create(volume_mount_path="/volumes/my-vol")
+
+# Invalid mount paths (will raise error)
+Sandbox.create(volume_mount_path="/etc/data")      # Invalid prefix
+Sandbox.create(volume_mount_path="workspace/data") # Not absolute
+Sandbox.create(volume_mount_path="/workspace/../etc") # No traversal
+```
+
+```javascript JavaScript
+// Valid mount paths
+await Sandbox.create("base", { volumeMountPath: "/workspace/data" })
+await Sandbox.create("base", { volumeMountPath: "/data/input" })
+await Sandbox.create("base", { volumeMountPath: "/mnt/storage" })
+await Sandbox.create("base", { volumeMountPath: "/volumes/my-vol" })
+
+// Invalid mount paths (will throw error)
+await Sandbox.create("base", { volumeMountPath: "/etc/data" })      // Invalid prefix
+await Sandbox.create("base", { volumeMountPath: "workspace/data" }) // Not absolute
+```
+</CodeGroup>
+
+## Data Persistence
+
+Data written to the volume mount path persists across sandbox restarts:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox, Volume
+
+vol = Volume.create(name="persistent-data")
+
+# First sandbox - write data
+sbx1 = Sandbox.create(
+    volume_id=vol.volume_id,
+    volume_mount_path="/workspace"
+)
+sbx1.commands.run("git clone https://github.com/user/repo /workspace")
+sbx1.kill()
+
+# Second sandbox - data is still there
+sbx2 = Sandbox.create(
+    volume_id=vol.volume_id,
+    volume_mount_path="/workspace"
+)
+result = sbx2.commands.run("ls /workspace")
+print(result.stdout)  # Shows cloned repo files
+```
+
+```javascript JavaScript
+import { Sandbox, Volume } from '@moru-ai/core'
+
+const vol = await Volume.create({ name: "persistent-data" })
+
+// First sandbox - write data
+const sbx1 = await Sandbox.create("base", {
+  volumeId: vol.volumeId,
+  volumeMountPath: "/workspace"
+})
+await sbx1.commands.run("git clone https://github.com/user/repo /workspace")
+await sbx1.kill()
+
+// Second sandbox - data is still there
+const sbx2 = await Sandbox.create("base", {
+  volumeId: vol.volumeId,
+  volumeMountPath: "/workspace"
+})
+const result = await sbx2.commands.run("ls /workspace")
+console.log(result.stdout)  // Shows cloned repo files
+```
+</CodeGroup>
+
+## Crash Safety
+
+Writes to the volume are crash-safe. If a sandbox crashes or is killed, completed writes are preserved:
+
+```python
+from moru import Sandbox, Volume
+
+vol = Volume.create(name="safe-data")
+sbx = Sandbox.create(
+    volume_id=vol.volume_id,
+    volume_mount_path="/data"
+)
+
+# Write some data
+sbx.commands.run("dd if=/dev/urandom of=/data/file.bin bs=1M count=100")
+
+# Even if sandbox crashes, the file is safe
+sbx.kill()
+
+# Verify via API
+files = vol.list_files("/")
+# file.bin is there with full content
+```
+
+## Volume with Other Options
+
+Combine volume attachment with other sandbox options:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox, Volume
+
+vol = Volume.create(name="agent-workspace")
+
+sbx = Sandbox.create(
+    template="python",
+    timeout=3600,  # 1 hour
+    volume_id=vol.volume_id,
+    volume_mount_path="/workspace",
+    envs={
+        "WORKSPACE": "/workspace",
+        "OPENAI_API_KEY": "sk-..."
+    },
+    metadata={
+        "agent_id": "agent-123",
+        "session": "abc"
+    }
+)
+```
+
+```javascript JavaScript
+import { Sandbox, Volume } from '@moru-ai/core'
+
+const vol = await Volume.create({ name: "agent-workspace" })
+
+const sbx = await Sandbox.create("python", {
+  timeoutMs: 3600000,  // 1 hour
+  volumeId: vol.volumeId,
+  volumeMountPath: "/workspace",
+  envs: {
+    WORKSPACE: "/workspace",
+    OPENAI_API_KEY: "sk-..."
+  },
+  metadata: {
+    agentId: "agent-123",
+    session: "abc"
+  }
+})
+```
+</CodeGroup>
+
+## Error Handling
+
+<CodeGroup>
+```python Python
+from moru import Sandbox, Volume
+from moru.exceptions import NotFoundException, SandboxException
+
+try:
+    sbx = Sandbox.create(
+        volume_id="vol_nonexistent",
+        volume_mount_path="/workspace"
+    )
+except NotFoundException:
+    print("Volume not found")
+except ValueError as e:
+    print(f"Invalid mount path: {e}")
+```
+
+```javascript JavaScript
+import { Sandbox, Volume, NotFoundError } from '@moru-ai/core'
+
+try {
+  const sbx = await Sandbox.create("base", {
+    volumeId: "vol_nonexistent",
+    volumeMountPath: "/workspace"
+  })
+} catch (error) {
+  if (error instanceof NotFoundError) {
+    console.log("Volume not found")
+  } else if (error.message.includes("must start with")) {
+    console.log("Invalid mount path")
+  }
+}
+```
+</CodeGroup>
+
+## Limitations
+
+- **One volume per sandbox** - Currently only one volume can be attached at a time
+- **Mount path is fixed** - Cannot change mount path after sandbox creation
+- **No concurrent writes** - Avoid multiple sandboxes writing to the same files simultaneously
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="File Operations" icon="folder" href="/volumes/files">
+    Access volume files without a sandbox.
+  </Card>
+  <Card title="Volume Lifecycle" icon="rotate" href="/volumes/lifecycle">
+    Best practices for managing volumes.
+  </Card>
+</CardGroup>

@@ -1,0 +1,314 @@
+---
+title: "File Operations"
+description: "List, upload, and download volume files without a sandbox"
+---
+
+Access files in a volume without spinning up a sandbox. This is useful for browsing data, downloading results, or uploading input files.
+
+## List Files
+
+List files and directories in a volume:
+
+<CodeGroup>
+```python Python
+from moru import Volume
+
+vol = Volume.get("my-workspace")
+
+# List root directory
+files = vol.list_files("/")
+
+for f in files:
+    if f.type == "directory":
+        print(f"[DIR]  {f.name}")
+    else:
+        print(f"[FILE] {f.name} ({f.size} bytes)")
+```
+
+```javascript JavaScript
+import { Volume } from '@moru-ai/core'
+
+const vol = await Volume.get("my-workspace")
+
+// List root directory
+const files = await vol.listFiles("/")
+
+for (const f of files) {
+  if (f.type === "directory") {
+    console.log(`[DIR]  ${f.name}`)
+  } else {
+    console.log(`[FILE] ${f.name} (${f.size} bytes)`)
+  }
+}
+```
+
+```bash CLI
+# List files in root
+moru volume files my-workspace
+
+# List specific directory
+moru volume files my-workspace /src
+
+# Output:
+# TYPE   NAME          SIZE      MODIFIED
+# dir    src           -         2024-01-15
+# file   README.md     1.2 KB    2024-01-15
+# file   main.py       4.5 KB    2024-01-15
+```
+</CodeGroup>
+
+## Download Files
+
+Download file content from a volume:
+
+<CodeGroup>
+```python Python
+from moru import Volume
+
+vol = Volume.get("my-workspace")
+
+# Download as bytes
+content = vol.download("/README.md")
+print(content.decode())
+
+# Save to local file
+with open("local_readme.md", "wb") as f:
+    f.write(vol.download("/README.md"))
+```
+
+```javascript JavaScript
+import { Volume } from '@moru-ai/core'
+import { writeFileSync } from 'fs'
+
+const vol = await Volume.get("my-workspace")
+
+// Download as buffer
+const content = await vol.download("/README.md")
+console.log(content.toString())
+
+// Save to local file
+writeFileSync("local_readme.md", content)
+```
+
+```bash CLI
+# Download file to stdout
+moru volume download my-workspace /README.md
+
+# Download file to local path
+moru volume download my-workspace /README.md ./local_readme.md
+```
+</CodeGroup>
+
+## Upload Files
+
+Upload files to a volume:
+
+<CodeGroup>
+```python Python
+from moru import Volume
+
+vol = Volume.get("my-workspace")
+
+# Upload from bytes
+vol.upload("/data/input.txt", b"Hello, World!")
+
+# Upload from file
+with open("local_file.txt", "rb") as f:
+    vol.upload("/data/input.txt", f.read())
+```
+
+```javascript JavaScript
+import { Volume } from '@moru-ai/core'
+import { readFileSync } from 'fs'
+
+const vol = await Volume.get("my-workspace")
+
+// Upload from buffer
+await vol.upload("/data/input.txt", Buffer.from("Hello, World!"))
+
+// Upload from file
+const content = readFileSync("local_file.txt")
+await vol.upload("/data/input.txt", content)
+```
+
+```bash CLI
+# Upload local file
+moru volume upload my-workspace local_file.txt /data/input.txt
+```
+</CodeGroup>
+
+<Note>
+Upload creates parent directories automatically. You don't need to create `/data/` before uploading to `/data/input.txt`.
+</Note>
+
+## Delete Files
+
+Delete files or directories from a volume:
+
+<CodeGroup>
+```python Python
+from moru import Volume
+
+vol = Volume.get("my-workspace")
+
+# Delete a file
+vol.delete("/data/old_file.txt")
+
+# Delete a directory recursively
+vol.delete("/temp", recursive=True)
+```
+
+```javascript JavaScript
+import { Volume } from '@moru-ai/core'
+
+const vol = await Volume.get("my-workspace")
+
+// Delete a file
+await vol.deleteFile("/data/old_file.txt")
+
+// Delete a directory recursively
+await vol.deleteFile("/temp", { recursive: true })
+```
+
+```bash CLI
+# Delete a file
+moru volume delete my-workspace /data/old_file.txt
+
+# Delete a directory recursively
+moru volume delete my-workspace /temp --recursive
+```
+</CodeGroup>
+
+## File Info
+
+File entries include:
+
+| Property | Description |
+|----------|-------------|
+| `name` | File or directory name |
+| `path` | Full path within volume |
+| `type` | `"file"` or `"directory"` |
+| `size` | Size in bytes (files only) |
+| `modified_at` / `modifiedAt` | Last modification time |
+
+## Pagination
+
+For directories with many files, use pagination:
+
+<CodeGroup>
+```python Python
+from moru import Volume
+
+vol = Volume.get("my-workspace")
+
+# Get first page
+files, next_token = vol.list_files("/", limit=100)
+
+# Get next page
+if next_token:
+    more_files, next_token = vol.list_files("/", limit=100, next_token=next_token)
+```
+
+```javascript JavaScript
+import { Volume } from '@moru-ai/core'
+
+const vol = await Volume.get("my-workspace")
+
+// Get first page
+const { files, nextToken } = await vol.listFiles("/", { limit: 100 })
+
+// Get next page
+if (nextToken) {
+  const more = await vol.listFiles("/", { limit: 100, nextToken })
+}
+```
+</CodeGroup>
+
+## Working with Binary Files
+
+Upload and download binary files like images, archives, and executables:
+
+<CodeGroup>
+```python Python
+from moru import Volume
+
+vol = Volume.get("my-workspace")
+
+# Upload binary file
+with open("model.bin", "rb") as f:
+    vol.upload("/models/model.bin", f.read())
+
+# Download and verify
+content = vol.download("/models/model.bin")
+with open("downloaded_model.bin", "wb") as f:
+    f.write(content)
+```
+
+```javascript JavaScript
+import { Volume } from '@moru-ai/core'
+import { readFileSync, writeFileSync } from 'fs'
+
+const vol = await Volume.get("my-workspace")
+
+// Upload binary file
+const modelData = readFileSync("model.bin")
+await vol.upload("/models/model.bin", modelData)
+
+// Download and verify
+const content = await vol.download("/models/model.bin")
+writeFileSync("downloaded_model.bin", content)
+```
+</CodeGroup>
+
+## Common Patterns
+
+### Pre-populate Volume Before Sandbox
+
+```python
+from moru import Volume, Sandbox
+
+# Create volume and upload data
+vol = Volume.create(name="agent-input")
+vol.upload("/config.json", b'{"model": "gpt-4"}')
+vol.upload("/prompt.txt", b"You are a helpful assistant...")
+
+# Create sandbox with pre-populated volume
+sbx = Sandbox.create(
+    volume_id=vol.volume_id,
+    volume_mount_path="/input"
+)
+
+# Config is ready to use
+sbx.commands.run("cat /input/config.json")
+```
+
+### Download Results After Sandbox
+
+```python
+from moru import Volume, Sandbox
+
+vol = Volume.create(name="agent-output")
+sbx = Sandbox.create(
+    volume_id=vol.volume_id,
+    volume_mount_path="/output"
+)
+
+# Agent writes results
+sbx.commands.run("python generate_report.py > /output/report.txt")
+sbx.kill()
+
+# Download results without sandbox
+report = vol.download("/output/report.txt")
+print(report.decode())
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Volume Lifecycle" icon="rotate" href="/volumes/lifecycle">
+    Best practices for managing volumes.
+  </Card>
+  <Card title="Create Volume" icon="plus" href="/volumes/create">
+    Create and configure volumes.
+  </Card>
+</CardGroup>

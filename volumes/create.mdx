@@ -1,0 +1,230 @@
+---
+title: "Create Volume"
+description: "Creating and managing persistent volumes"
+---
+
+Create persistent volumes with `Volume.create()`. Volume creation is idempotent - calling create with the same name returns the existing volume.
+
+## Basic Usage
+
+<CodeGroup>
+```python Python
+from moru import Volume
+
+# Create a volume
+vol = Volume.create(name="my-workspace")
+
+print(f"Volume ID: {vol.volume_id}")
+print(f"Name: {vol.name}")
+```
+
+```javascript JavaScript
+import { Volume } from '@moru-ai/core'
+
+// Create a volume
+const vol = await Volume.create({ name: "my-workspace" })
+
+console.log(`Volume ID: ${vol.volumeId}`)
+console.log(`Name: ${vol.name}`)
+```
+
+```bash CLI
+# Create a volume
+moru volume create --name my-workspace
+
+# Output:
+# Volume ID: vol_abc123...
+# Name: my-workspace
+```
+</CodeGroup>
+
+## Idempotent Creation
+
+Creating a volume with a name that already exists returns the existing volume:
+
+<CodeGroup>
+```python Python
+from moru import Volume
+
+# First create
+vol1 = Volume.create(name="shared-data")
+
+# Second create with same name returns existing
+vol2 = Volume.create(name="shared-data")
+
+assert vol1.volume_id == vol2.volume_id  # Same volume!
+```
+
+```javascript JavaScript
+import { Volume } from '@moru-ai/core'
+
+// First create
+const vol1 = await Volume.create({ name: "shared-data" })
+
+// Second create with same name returns existing
+const vol2 = await Volume.create({ name: "shared-data" })
+
+console.log(vol1.volumeId === vol2.volumeId)  // true - same volume!
+```
+</CodeGroup>
+
+## Volume Naming
+
+Volume names must follow these rules:
+
+- Start with a lowercase letter
+- Contain only lowercase letters, numbers, and hyphens
+- Maximum 63 characters
+- No uppercase letters
+
+```python
+# Valid names
+Volume.create(name="my-workspace")
+Volume.create(name="agent-data-v2")
+Volume.create(name="project123")
+
+# Invalid names (will raise error)
+Volume.create(name="MyWorkspace")    # No uppercase
+Volume.create(name="123-data")       # Must start with letter
+Volume.create(name="")               # Cannot be empty
+```
+
+## Get Volume
+
+Retrieve a volume by ID or name:
+
+<CodeGroup>
+```python Python
+from moru import Volume
+
+# Get by ID
+vol = Volume.get("vol_abc123...")
+
+# Get by name
+vol = Volume.get("my-workspace")
+
+print(f"Size: {vol.total_size_bytes} bytes")
+print(f"Files: {vol.total_file_count}")
+```
+
+```javascript JavaScript
+import { Volume } from '@moru-ai/core'
+
+// Get by ID
+const vol = await Volume.get("vol_abc123...")
+
+// Get by name
+const vol = await Volume.get("my-workspace")
+
+console.log(`Size: ${vol.totalSizeBytes} bytes`)
+console.log(`Files: ${vol.totalFileCount}`)
+```
+
+```bash CLI
+# Get volume info
+moru volume info my-workspace
+
+# Output:
+# Volume ID: vol_abc123...
+# Name: my-workspace
+# Size: 1.2 GB
+# Files: 342
+```
+</CodeGroup>
+
+## List Volumes
+
+List all volumes in your team:
+
+<CodeGroup>
+```python Python
+from moru import Volume
+
+volumes = Volume.list()
+
+for vol in volumes:
+    print(f"{vol.name}: {vol.total_size_bytes} bytes")
+```
+
+```javascript JavaScript
+import { Volume } from '@moru-ai/core'
+
+const volumes = await Volume.list()
+
+for (const vol of volumes) {
+  console.log(`${vol.name}: ${vol.totalSizeBytes} bytes`)
+}
+```
+
+```bash CLI
+# List all volumes
+moru volume list
+
+# Output:
+# NAME            SIZE     FILES   CREATED
+# my-workspace    1.2 GB   342     2024-01-15
+# shared-data     45 MB    12      2024-01-10
+```
+</CodeGroup>
+
+## Delete Volume
+
+Delete a volume and all its data:
+
+<CodeGroup>
+```python Python
+from moru import Volume
+
+vol = Volume.get("my-workspace")
+vol.delete()
+
+# Or delete by name directly
+Volume.get("old-data").delete()
+```
+
+```javascript JavaScript
+import { Volume } from '@moru-ai/core'
+
+const vol = await Volume.get("my-workspace")
+await vol.delete()
+
+// Or delete by name directly
+await (await Volume.get("old-data")).delete()
+```
+
+```bash CLI
+# Delete volume
+moru volume delete my-workspace
+
+# Force delete without confirmation
+moru volume delete my-workspace --force
+```
+</CodeGroup>
+
+<Warning>
+Deleting a volume permanently removes all data. This cannot be undone.
+</Warning>
+
+## Volume Info
+
+The volume object includes:
+
+| Property | Description |
+|----------|-------------|
+| `volume_id` / `volumeId` | Unique identifier (vol_xxx) |
+| `name` | Volume name |
+| `total_size_bytes` / `totalSizeBytes` | Total storage used |
+| `total_file_count` / `totalFileCount` | Number of files |
+| `created_at` / `createdAt` | Creation timestamp |
+| `updated_at` / `updatedAt` | Last modification timestamp |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Attach to Sandbox" icon="link" href="/volumes/attach">
+    Mount your volume in a sandbox.
+  </Card>
+  <Card title="File Operations" icon="folder" href="/volumes/files">
+    Access files without a sandbox.
+  </Card>
+</CardGroup>

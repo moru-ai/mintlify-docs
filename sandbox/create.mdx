@@ -54,6 +54,8 @@ const sandbox = await Sandbox.create("python", {
 | `network` | object | `null` | Fine-grained network control |
 | `mcp` | object | `null` | MCP server configuration |
 | `secure` | boolean | `true` | Enable security features |
+| `volume_id` / `volumeId` | string | `null` | Volume ID to attach |
+| `volume_mount_path` / `volumeMountPath` | string | required with volume | Mount path in sandbox |
 
 ## Template Selection
 
@@ -330,6 +332,41 @@ try {
 ```
 </CodeGroup>
 
+## Volumes
+
+Attach a persistent volume for data that survives sandbox restarts:
+
+<CodeGroup>
+```python Python
+from moru import Sandbox, Volume
+
+vol = Volume.create(name="my-workspace")
+
+sandbox = Sandbox.create(
+    template="python",
+    volume_id=vol.volume_id,
+    volume_mount_path="/workspace"
+)
+
+# Data in /workspace persists after sandbox is killed
+```
+
+```javascript JavaScript
+import { Sandbox, Volume } from '@moru-ai/core'
+
+const vol = await Volume.create({ name: "my-workspace" })
+
+const sandbox = await Sandbox.create("python", {
+  volumeId: vol.volumeId,
+  volumeMountPath: "/workspace"
+})
+
+// Data in /workspace persists after sandbox is killed
+```
+</CodeGroup>
+
+See [Volumes](/volumes/overview) for more information.
+
 ## Next Steps
 
 <CardGroup cols={2}>
@@ -342,7 +379,7 @@ try {
   <Card title="File Operations" icon="folder" href="/files/overview">
     Read and write files.
   </Card>
-  <Card title="Custom Templates" icon="layer-group" href="/templates/overview">
-    Create templates with your dependencies.
+  <Card title="Volumes" icon="hard-drive" href="/volumes/overview">
+    Persistent storage for sandbox data.
   </Card>
 </CardGroup>
