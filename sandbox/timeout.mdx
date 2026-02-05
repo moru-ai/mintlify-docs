@@ -7,27 +7,27 @@ Sandboxes automatically terminate after a timeout period. This prevents runaway 
 
 ## Default Timeout
 
-The default timeout is **5 minutes** (300 seconds). After this period of inactivity, the sandbox is automatically killed.
+The default timeout is **1 hour** (3600 seconds). After this period of inactivity, the sandbox is automatically killed.
 
 <CodeGroup>
 ```python Python
 from moru import Sandbox
 
-# Default 5-minute timeout
+# Default 1-hour timeout
 sandbox = Sandbox.create()
 
-# Custom timeout (10 minutes)
-sandbox = Sandbox.create(timeout=600)
+# Custom timeout (30 minutes)
+sandbox = Sandbox.create(timeout=1800)
 ```
 
 ```javascript JavaScript
 import Sandbox from '@moru-ai/core'
 
-// Default 5-minute timeout
+// Default 1-hour timeout
 const sandbox = await Sandbox.create()
 
-// Custom timeout (10 minutes)
-const sandbox = await Sandbox.create({ timeoutMs: 600000 })
+// Custom timeout (30 minutes)
+const sandbox = await Sandbox.create({ timeoutMs: 1800000 })
 ```
 </CodeGroup>
 
